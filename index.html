@@ -1,0 +1,1955 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F1F5ED" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1A1F18" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Библиотека прочитанного — прототип</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Lora:wght@500;600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F1F5ED; --bg2:#E4EBDA; --ink:#242A20; --ink2:#616D57; --ink3:#889480;
+  --accent:#A0522D; --yes:#43694D; --no:#7F8A77; --line:#DAE2CE; --white:#FDFDFB;
+  --serif:'Playfair Display',Georgia,serif; --book:'Lora',Georgia,serif;
+  --sans:'Inter',system-ui,sans-serif; --mono:'IBM Plex Mono',monospace;
+  /* полупрозрачные подложки вынесены в переменные, иначе тема их не переключит */
+  --bar:rgba(241,245,237,.94);            /* липкая панель инструментов */
+  --tint-yes:rgba(67,105,77,.10);
+  --tint-no:rgba(127,138,119,.12);
+  --tint-accent:rgba(160,82,45,.06);
+  --edge:rgba(160,82,45,.30);
+  --edge-yes:rgba(67,105,77,.40);
+  --bar-edge:rgba(241,245,237,.45);   /* рамка кнопки внутри тёмного уведомления */
+  --err:#9B3B3B;
+  --on-accent:#FDFDFB;
+}
+/* Тёмная тема: меняется только бумага и краска. Картинок нет — и нечего инвертировать. */
+:root[data-theme="dark"]{
+  --bg:#1A1F18; --bg2:#222920; --ink:#E4EADD; --ink2:#B4BFA9; --ink3:#8A967F;
+  --accent:#D68C5C; --yes:#8FBB9C; --no:#9AA795; --line:#333C30; --white:#20261E;
+  --bar:rgba(26,31,24,.94);
+  --tint-yes:rgba(143,187,156,.13);
+  --tint-no:rgba(154,167,149,.14);
+  --tint-accent:rgba(214,140,92,.13);
+  --edge:rgba(214,140,92,.35);
+  --edge-yes:rgba(143,187,156,.45);
+  --bar-edge:rgba(228,234,221,.42);
+  --err:#E3908C;
+  --on-accent:#1A1F18;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:var(--sans); font-size:15px; line-height:1.6;
+}
+a{color:var(--accent); text-decoration:none; border-bottom:1px solid var(--edge)}
+a:hover{border-bottom-color:var(--accent)}
+.wrap{max-width:1060px; margin:0 auto; padding:0 24px}
+button,input,select{font-family:inherit; font-size:inherit; color:inherit}
+
+/* ---------- Шапка ---------- */
+header{padding:56px 0 8px; border-bottom:1px solid var(--line)}
+h1{font-family:var(--serif); font-weight:700; font-size:42px; line-height:1.15; margin:0 0 10px; letter-spacing:-.01em}
+.sub{color:var(--ink2); font-size:16px; margin:0 0 26px; max-width:56ch}
+.counters{display:flex; gap:36px; flex-wrap:wrap; padding-bottom:34px}
+.cnt{}
+.cnt b{display:block; font-family:var(--mono); font-size:27px; font-weight:500; line-height:1.1}
+.cnt span{font-size:12px; text-transform:uppercase; letter-spacing:.09em; color:var(--ink3)}
+.cnt.yes b{color:var(--yes)} .cnt.no b{color:var(--no)}
+
+/* ---------- Панель инструментов ---------- */
+.toolbar{
+  position:sticky; top:0; z-index:50; background:var(--bar);
+  backdrop-filter:blur(8px); border-bottom:1px solid var(--line); padding:12px 0;
+}
+.trow{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+.search{flex:1 1 260px; position:relative}
+.search input{
+  width:100%; background:var(--white); border:1px solid var(--line); border-radius:3px;
+  padding:9px 13px; outline:none;
+}
+.search input:focus{border-color:var(--accent)}
+/* Chrome подсвечивает поле с историей желтым — перебиваем своим фоном */
+.search input:-webkit-autofill,
+.search input:-webkit-autofill:hover,
+.search input:-webkit-autofill:focus{
+  -webkit-text-fill-color:var(--ink);
+  -webkit-box-shadow:0 0 0 1000px var(--white) inset;
+  caret-color:var(--ink);
+}
+.btn{
+  background:var(--white); border:1px solid var(--line); border-radius:3px;
+  padding:9px 13px; cursor:pointer; white-space:nowrap;
+}
+.btn:hover{border-color:var(--ink3)}
+.btn.on{background:var(--ink); color:var(--bg); border-color:var(--ink)}
+select.sel{background:var(--white); border:1px solid var(--line); border-radius:3px; padding:9px 11px; cursor:pointer}
+.seg{display:flex; border:1px solid var(--line); border-radius:3px; overflow:hidden}
+.seg button{background:var(--white); border:0; padding:9px 12px; cursor:pointer; border-right:1px solid var(--line)}
+.seg button:last-child{border-right:0}
+.seg button.on{background:var(--ink); color:var(--bg)}
+
+/* ---------- Панель фильтров ---------- */
+.filters{display:none; padding:18px 0 4px; border-bottom:1px solid var(--line)}
+.filters.open{display:block}
+.fgrid{display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:20px}
+.fgroup h4{margin:0 0 8px; font-size:11px; text-transform:uppercase; letter-spacing:.09em; color:var(--ink3); font-weight:600}
+.fopts{display:flex; flex-wrap:wrap; gap:6px}
+.chip{
+  background:var(--white); border:1px solid var(--line); border-radius:20px;
+  padding:5px 11px; font-size:13px; cursor:pointer;
+}
+.chip:hover{border-color:var(--ink3)}
+.chip.on{background:var(--ink); color:var(--bg); border-color:var(--ink)}
+.chip.on.yes{background:var(--yes); border-color:var(--yes)}
+.fcheck{display:flex; align-items:center; gap:8px; font-size:14px; cursor:pointer; padding:3px 0}
+.scroll{max-height:168px; overflow:auto; padding-right:4px}
+
+/* ---------- Активные фильтры ---------- */
+.active{display:flex; flex-wrap:wrap; gap:6px; align-items:center; padding:12px 0 0}
+.tag{display:inline-flex; align-items:center; gap:7px; background:var(--bg2); border-radius:3px; padding:5px 9px; font-size:13px; cursor:pointer}
+.tag b{font-weight:500; color:var(--ink3)}
+.tag:hover{background:#D8E2C9}
+.resultbar{display:flex; justify-content:space-between; align-items:baseline; padding:22px 0 6px; font-family:var(--mono); font-size:13px; color:var(--ink2)}
+.reset{background:none; border:0; color:var(--accent); cursor:pointer; font-family:var(--sans); font-size:13px; text-decoration:underline; padding:0}
+
+/* ---------- Список книг ---------- */
+.rows{border-top:1px solid var(--line)}
+.row{
+  display:grid; grid-template-columns:10px 1fr auto auto; gap:16px; align-items:start;
+  padding:17px 0; border-bottom:1px solid var(--line); cursor:pointer;
+}
+.row:hover{background:rgba(228,235,218,.55)}
+.row:hover .bt{color:var(--accent)}
+.mk{width:8px; height:8px; border-radius:2px; margin-top:9px}
+.mk.yes{background:var(--yes)} .mk.no{background:var(--no)}
+.bt{font-family:var(--book); font-weight:600; font-size:19px; line-height:1.35; margin:0}
+.ba{font-size:13px; color:var(--ink2); margin-top:2px}
+.bn{font-size:14px; color:var(--ink2); margin-top:5px; max-width:62ch}
+.bm{font-family:var(--mono); font-size:13px; color:var(--ink2); text-align:right; white-space:nowrap; padding-top:4px}
+.badges{display:flex; gap:6px; margin-top:6px; flex-wrap:wrap}
+.badge{font-size:11px; letter-spacing:.04em; text-transform:uppercase; color:var(--ink3); border:1px solid var(--line); border-radius:3px; padding:2px 6px}
+.badge.v{color:var(--yes); border-color:var(--edge-yes)}
+.badge.vn{color:var(--ink2)}
+.badge.fav{color:var(--accent); border-color:var(--edge); background:var(--tint-accent)}
+.quote-mark{color:var(--accent); margin-left:2px}
+
+/* ---------- Компактный вид ---------- */
+.grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(238px,1fr)); gap:2px 22px; border-top:1px solid var(--line)}
+.cell{padding:14px 0; border-bottom:1px solid var(--line); cursor:pointer}
+.cell:hover .bt{color:var(--accent)}
+.cell .bt{font-family:var(--book); font-weight:600; font-size:16px; line-height:1.35}
+.cell .ba{font-size:12.5px; color:var(--ink2); margin-top:2px}
+
+/* ---------- По алфавиту ---------- */
+.letter{
+  font-family:var(--mono); font-size:14px; color:var(--ink2);
+  padding:26px 0 8px; border-bottom:1px solid var(--ink3); margin-top:14px;
+}
+.letter span{color:var(--ink3); font-size:12px; margin-left:8px}
+
+/* ---------- Пусто ---------- */
+.empty{padding:64px 0; text-align:center; color:var(--ink2)}
+.empty b{display:block; font-family:var(--serif); font-size:24px; color:var(--ink); margin-bottom:8px}
+
+/* ---------- Страница книги ---------- */
+.overlay{
+  position:fixed; inset:0; z-index:100; background:var(--bg); overflow:auto; display:none;
+}
+.overlay.open{display:block}
+.book{max-width:720px; margin:0 auto; padding:0 24px 100px}
+.bclose{
+  position:sticky; top:0; background:var(--bg); padding:16px 0; z-index:2;
+  border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center;
+}
+.bh1{font-family:var(--serif); font-weight:700; font-size:34px; line-height:1.2; margin:32px 0 4px}
+.bauth{font-size:16px; color:var(--ink2)}
+.bser{font-size:14px; color:var(--ink2); margin-top:4px; font-family:var(--mono)}
+.vplate{border-radius:4px; padding:18px 20px; margin:26px 0}
+.vplate.yes{background:var(--tint-yes); border-left:3px solid var(--yes)}
+.vplate.no{background:var(--tint-no); border-left:3px solid var(--no)}
+.vplate b{display:block; font-size:11px; text-transform:uppercase; letter-spacing:.1em; margin-bottom:6px}
+.vplate.yes b{color:var(--yes)} .vplate.no b{color:var(--ink2)}
+.vplate span{font-size:14.5px; color:var(--ink2)}
+
+/* «Особенно любимая» — узкая полка поверх вердикта */
+.favplate{
+  margin:-14px 0 24px; padding:7px 14px;
+  background:var(--accent); color:var(--on-accent); border-radius:3px;
+  font-size:11px; text-transform:uppercase; letter-spacing:.1em;
+  display:inline-block;
+}
+.itemrow .rt .star{color:var(--accent); font-size:13px; line-height:1}
+.facts{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px 22px; margin:26px 0; padding:20px 0; border-top:1px solid var(--line); border-bottom:1px solid var(--line)}
+.fact .k{font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--ink3); display:block}
+.fact .v{font-family:var(--mono); font-size:14px}
+.sec{margin:32px 0}
+.sec h5{font-size:11px; text-transform:uppercase; letter-spacing:.1em; color:var(--ink3); margin:0 0 10px; font-weight:600}
+.note{font-size:16px; line-height:1.72; color:var(--ink); white-space:pre-wrap}
+.note{font-size:16px; line-height:1.75; white-space:pre-wrap; color:var(--ink)}
+.qs{border-left:2px solid var(--accent); padding:2px 0 2px 20px; margin:0 0 22px}
+.qs p{font-family:var(--book); font-size:17px; line-height:1.65; margin:0 0 6px}
+.qs cite{font-style:normal; font-size:12.5px; color:var(--ink3); font-family:var(--mono)}
+.bnav{display:flex; gap:12px; flex-wrap:wrap; margin-top:44px; padding-top:24px; border-top:1px solid var(--line)}
+
+/* ---------- Меню ---------- */
+.nav{display:flex; flex-wrap:wrap; gap:2px 22px; margin-top:26px; padding-top:16px; border-top:1px solid var(--line)}
+.nav a{
+  color:var(--ink2); font-size:14px; padding:3px 0; white-space:nowrap;
+  border-bottom:1px solid transparent;
+}
+.nav a:hover{color:var(--accent); border-bottom-color:var(--accent)}
+.nav a.on{color:var(--ink); font-weight:600; border-bottom-color:var(--ink)}
+
+/* ---------- Общие блоки страниц ---------- */
+.page{padding:34px 0 10px}
+.page h2{
+  font-family:var(--serif); font-size:30px; font-weight:500; margin:0 0 6px; letter-spacing:-.01em;
+}
+.page .lead{color:var(--ink2); font-size:15px; margin:0 0 26px; max-width:66ch}
+.secrow{margin:40px 0 0}
+.secrow > h3{
+  font-family:var(--serif); font-size:21px; font-weight:500; margin:0 0 4px;
+  display:flex; align-items:baseline; gap:10px;
+}
+.secrow > h3 .n{font-family:var(--mono); font-size:12px; color:var(--ink3); font-weight:400}
+.secrow > .sub{color:var(--ink3); font-size:13.5px; margin:0 0 14px}
+.empty{color:var(--ink3); font-size:14px; padding:22px 0; font-style:italic}
+
+/* строка «элемент — показатель» для авторов, серий, жанров */
+.itemrow{
+  display:grid; grid-template-columns:1fr auto; gap:16px; align-items:baseline;
+  padding:13px 0; border-bottom:1px solid var(--line);
+}
+.itemrow .nm{font-family:var(--book); font-size:17px}
+.itemrow .nm small{font-family:var(--sans); font-size:13px; color:var(--ink3); margin-left:8px}
+.itemrow .rt{display:flex; gap:16px; align-items:baseline; white-space:nowrap}
+.itemrow .rt .num{font-family:var(--mono); font-size:13px; color:var(--ink2)}
+.itemrow .rt .pct{font-family:var(--mono); font-size:12px; color:var(--yes)}
+.itemrow a.nm{color:var(--ink); border-bottom:0}
+.itemrow a.nm:hover{color:var(--accent)}
+
+/* буквенные разделы А–Я */
+.alpha{display:flex; flex-wrap:wrap; gap:6px 14px; padding:0 0 18px; font-family:var(--mono); font-size:13px}
+.alpha a{color:var(--ink2); border-bottom:0}
+.alpha a:hover{color:var(--accent)}
+.alpha a.off{color:var(--ink3); opacity:.4; pointer-events:none}
+.alpha b{font-family:var(--sans); font-weight:600; margin-right:14px}
+
+/* полоска прогресса серии */
+.bar{height:3px; background:var(--bg2); border-radius:2px; overflow:hidden; margin-top:7px; grid-column:1/-1}
+.bar i{display:block; height:100%; background:var(--yes)}
+
+/* графики статистики */
+.chart{display:flex; align-items:flex-end; gap:6px; height:170px; padding:8px 0 0}
+.chart .col{flex:1; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; gap:6px; min-width:0}
+.chart .col .stack{width:100%; max-width:46px; display:flex; flex-direction:column-reverse; background:var(--bg2); border-radius:2px 2px 0 0; overflow:hidden}
+.chart .col .stack i{display:block; width:100%}
+.chart .col .stack i.y{background:var(--yes)}
+.chart .col .stack i.n{background:var(--no)}
+.chart .col .lb{font-family:var(--mono); font-size:11px; color:var(--ink3); white-space:nowrap}
+.chart .col .vl{font-family:var(--mono); font-size:11px; color:var(--ink2)}
+
+/* лента по годам (главная) */
+.yfeed{margin:0; padding:0; list-style:none}
+.yfeed .yr{
+  display:grid; grid-template-columns:82px 1fr; gap:20px;
+  padding:20px 0; border-top:1px solid var(--line); cursor:pointer;
+}
+.yfeed .yr:hover{background:rgba(228,235,218,.5)}
+.yfeed .yr .y{font-family:var(--mono); font-size:22px; color:var(--ink2)}
+.yfeed .yr .tt{font-family:var(--book); font-size:16px; line-height:1.5}
+.yfeed .yr .meta{font-family:var(--mono); font-size:12px; color:var(--ink3); margin-top:5px}
+
+/* цитаты */
+.qgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:18px}
+
+/* Панель фильтров цитат: подписи сверху, списки в одну линию */
+.qfilters{display:flex; flex-wrap:wrap; gap:14px 20px; align-items:flex-end; margin:24px 0 0;
+  padding:16px 18px; background:var(--bg2); border:1px solid var(--line); border-radius:5px}
+.qf{display:flex; flex-direction:column; gap:5px; min-width:150px}
+.qf>span{font-family:var(--sans); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink3)}
+.qf .sel{min-width:150px}
+.qcard{
+  background:var(--white); border:1px solid var(--line); border-radius:4px; padding:20px 20px 16px;
+  display:flex; flex-direction:column; gap:12px; cursor:pointer;
+}
+.qcard:hover{border-color:var(--ink3)}
+.qcard .qt{font-family:var(--book); font-size:15px; line-height:1.55; flex:1}
+.qcard .qs{font-family:var(--sans); font-size:12px; color:var(--ink3)}
+.qcard .qs b{font-weight:600; color:var(--ink2)}
+
+/* текстовые страницы */
+.prose{max-width:66ch}
+.prose p{font-size:16px; line-height:1.7; margin:0 0 16px; color:var(--ink)}
+.prose h4{font-family:var(--serif); font-size:19px; font-weight:500; margin:32px 0 10px}
+
+@media(max-width:640px){
+  .nav{gap:2px 14px}
+  .nav a{font-size:13px}
+  .page h2{font-size:24px}
+  .yfeed .yr{grid-template-columns:1fr; gap:6px}
+  .chart{height:130px}
+}
+/* ---------- Подвал ---------- */
+footer{border-top:1px solid var(--line); margin-top:70px; padding:28px 0 60px; color:var(--ink3); font-size:13px}
+
+/* ---------- Режим владельца ---------- */
+.ownerbox{display:flex; align-items:center; gap:12px; margin-top:22px; flex-wrap:wrap}
+.ownerbox .reset{font-size:13px; color:var(--ink3)}
+.ownerbox .reset:hover{color:var(--accent)}
+.oin{display:none; align-items:center; gap:8px}
+.oin.show{display:flex}
+.oin input{
+  width:180px; background:var(--white); border:1px solid var(--line);
+  border-radius:3px; padding:8px 12px; outline:none; font-family:inherit; font-size:14px;
+}
+.oin input:focus{border-color:var(--accent)}
+.pwmsg{font-size:13px; color:var(--accent)}
+.ownly{display:none}
+body.owner .ownly{display:inline-flex}
+body.owner .rowact{display:flex}
+body.owner .ownerbox .reset{display:none}
+.rowact{display:none; gap:6px}
+.mini{background:none;border:1px solid var(--line);border-radius:3px;width:28px;height:28px;cursor:pointer;color:var(--ink2);font-size:13px;padding:0}
+.mini:hover{border-color:var(--accent);color:var(--accent)}
+.mini.del:hover{border-color:var(--err);color:var(--err)}
+.fadmin{display:flex; gap:16px; flex-wrap:wrap; margin-top:14px; padding-top:14px; border-top:1px solid var(--line)}
+.fadmin .reset{font-size:13px}
+
+/* ---------- Форма книги ---------- */
+.formwrap{max-width:800px; margin:0 auto; padding:0 24px 60px}
+.bform{display:grid; grid-template-columns:1fr 1fr; gap:18px 20px; margin-top:24px}
+.fld{display:flex; flex-direction:column; gap:6px}
+.fld.wide{grid-column:1/-1}
+.fld label{font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--ink3); font-weight:600}
+.fld label .req{color:var(--accent)}
+.fld input,.fld select,.fld textarea{
+  background:var(--white); border:1px solid var(--line); border-radius:3px;
+  padding:10px 12px; outline:none; font-family:inherit; font-size:15px; width:100%;
+}
+.fld input:focus,.fld select:focus,.fld textarea:focus{border-color:var(--accent)}
+.fld textarea{resize:vertical; min-height:66px}
+.vpick{display:flex; gap:8px}
+.vpick button{
+  flex:1; padding:12px; border:1px solid var(--line); background:var(--white);
+  border-radius:3px; cursor:pointer; font-size:15px; font-family:inherit;
+}
+.vpick button.on[data-v="yes"]{background:var(--yes); border-color:var(--yes); color:#fff}
+.vpick button.on[data-v="no"]{background:var(--no); border-color:var(--no); color:#fff}
+.gchips{display:flex; flex-wrap:wrap; gap:6px}
+.gadd{display:flex; gap:8px}
+.fbtns{display:flex; gap:10px; justify-content:flex-end; margin-top:30px; padding-top:20px; border-top:1px solid var(--line)}
+.btn.primary{background:var(--ink); color:var(--bg); border-color:var(--ink)}
+.err{color:var(--err); font-size:13px; margin-top:14px; display:none}
+.err.on{display:block}
+.hint{font-size:13px; color:var(--ink3); margin-top:6px}
+
+/* ---------- Уведомление ---------- */
+.toast{
+  position:fixed; left:50%; bottom:28px; transform:translateX(-50%); background:var(--ink);
+  color:var(--bg); padding:13px 18px; border-radius:3px; display:none; gap:16px;
+  align-items:center; z-index:200; font-size:14px; max-width:90vw;
+}
+.toast.on{display:flex}
+.toast button{background:none; border:1px solid var(--bar-edge); color:var(--bg); border-radius:3px; padding:5px 11px; cursor:pointer; font-size:13px; font-family:inherit; white-space:nowrap}
+
+/* ---------- Телефон ---------- */
+@media(max-width:640px){
+  .wrap{padding:0 16px} header{padding-top:36px} h1{font-size:31px}
+  .counters{gap:22px} .cnt b{font-size:22px}
+  .toolbar{padding:10px 0}
+  .search{flex:1 1 100%}
+  .trow{gap:8px}
+  .row{grid-template-columns:10px 1fr auto; gap:12px}
+  .bm{grid-column:2; grid-row:2; text-align:left; padding-top:0}
+  .rowact{grid-column:3; grid-row:1; flex-direction:column}
+  .bform{grid-template-columns:1fr}
+  .formwrap{padding:0 16px 70px}
+  .bt{font-size:17px} .bh1{font-size:27px}
+  .book{padding:0 16px 70px}
+  .grid{grid-template-columns:1fr}
+
+  /* Палец, а не мышь. Поля в 16px — иначе телефон при касании
+     сам увеличивает страницу и её потом не отпускает. */
+  .fld input,.fld select,.fld textarea,.search input,.oin input{font-size:16px}
+  .chip{padding:9px 14px; font-size:14px}
+  .fcheck{padding:10px 0}
+  .tag{padding:9px 11px; font-size:14px}
+  .reset{padding:9px 0}   /* иначе «Сбросить» — кнопка высотой в одно слово */
+  .mini{width:40px; height:40px; font-size:15px}
+  .rowact{gap:10px}
+  .vpick button{padding:14px 10px}
+  /* отклик на палец: без этого телефон никак не покажет, что нажали */
+  .chip:active,.fcheck:active,.mini:active,.vpick button:active{opacity:.65}
+  /* форма не должна уезжать под верхнюю плашку телефона */
+  .formwrap{padding-top:12px}
+}
+
+/* ---------- Печать ---------- */
+@media print{
+  header,.toolbar,.filters,.active,.resultbar,.bnav,footer,.overlay{display:none!important}
+  body{background:#fff; color:#000; font-size:12pt}
+  .bt{font-family:var(--book); font-size:13pt; color:#000}
+  .mk{-webkit-print-color-adjust:exact; print-color-adjust:exact}
+  a{color:#000; border:0}
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <h1>Библиотека прочитанного</h1>
+    <p class="sub">Все книги, которые я дочитала. Что из этого зацепило и к чему хочу вернуться.</p>
+    <div class="counters">
+      <div class="cnt"><b id="c-all">—</b><span>книг прочитано</span></div>
+      <div class="cnt yes"><b id="c-yes">—</b><span>вернусь</span></div>
+      <div class="cnt no"><b id="c-no">—</b><span>один раз</span></div>
+    </div>
+    <div class="ownerbox">
+      <div class="oin" id="oin">
+        <input type="password" id="pw" placeholder="Пароль владельца" autocomplete="off">
+        <button class="btn" id="pwin">Войти</button>
+      </div>
+      <button class="reset" id="ownertoggle">Режим владельца</button>
+      <span class="pwmsg" id="pwmsg"></span>
+    </div>
+    <nav class="nav" id="nav">
+      <a href="#/" data-r="/">Главная</a>
+      <a href="#/catalog" data-r="/catalog">Каталог</a>
+      <a href="#/lists" data-r="/lists">Списки</a>
+      <a href="#/authors" data-r="/authors">Авторы</a>
+      <a href="#/series" data-r="/series">Серии</a>
+      <a href="#/genres" data-r="/genres">Жанры</a>
+      <a href="#/quotes" data-r="/quotes">Цитаты</a>
+      <a href="#/stats" data-r="/stats">Статистика</a>
+      <a href="#/about" data-r="/about">О библиотеке</a>
+    </nav>
+  </header>
+</div>
+
+<div class="toolbar">
+  <div class="wrap">
+    <div class="trow">
+      <div class="search">
+        <input id="q" type="search" placeholder="Поиск по названию, автору, серии, заметке…" autocomplete="off">
+      </div>
+      <select class="sel" id="sort">
+        <optgroup label="По алфавиту">
+          <option value="t">Название, А–Я</option>
+          <option value="a">Автор, А–Я</option>
+        </optgroup>
+        <optgroup label="По вердикту">
+          <option value="v_yes">Сначала «Вернусь»</option>
+          <option value="v_no">Сначала «Один раз»</option>
+        </optgroup>
+        <optgroup label="По дате">
+          <option value="y_desc">Год: новые → старые</option>
+          <option value="y_asc">Год: старые → новые</option>
+        </optgroup>
+        <optgroup label="Прочее">
+          <option value="note">По длине заметки</option>
+          <option value="quotes">По числу цитат</option>
+          <option value="rand">Случайный порядок</option>
+        </optgroup>
+      </select>
+      <div class="seg" id="view">
+        <button data-v="list" class="on">Список</button>
+        <button data-v="grid">Компактно</button>
+        <button data-v="alpha">По алфавиту</button>
+      </div>
+      <button class="btn" id="fb">Все фильтры</button>
+      <button class="btn ownly" id="add" style="background:var(--ink);color:var(--bg);border-color:var(--ink)">+ Добавить книгу</button>
+    </div>
+
+    <div class="filters" id="filters">
+      <div class="fgrid">
+        <div class="fgroup"><h4>Вернусь?</h4><div class="fopts" id="f-v"></div></div>
+        <div class="fgroup"><h4>Год прочтения</h4><div class="fopts" id="f-y"></div></div>
+        <div class="fgroup"><h4>Жанр</h4><div class="fopts scroll" id="f-g"></div></div>
+        <div class="fgroup"><h4>Автор</h4><div class="fopts scroll" id="f-a"></div></div>
+        <div class="fgroup"><h4>Серия</h4><div class="fopts scroll" id="f-s"></div></div>
+        <div class="fgroup"><h4>Прочее</h4>
+          <label class="fcheck"><input type="checkbox" id="f-fav"> Только особенно любимые</label>
+          <label class="fcheck"><input type="checkbox" id="f-note"> Есть заметка</label>
+          <label class="fcheck"><input type="checkbox" id="f-quote"> Есть цитата</label>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="active" id="active"></div>
+  <div class="resultbar">
+    <span id="rcount">—</span>
+    <span><button class="reset" id="print">Распечатать</button> · <button class="reset" id="csv">Скачать CSV</button></span>
+  </div>
+  <div id="out"></div>
+</div>
+
+<div class="wrap" id="pg" hidden></div>
+
+<div class="wrap">
+  <footer>
+    <div id="foot"></div>
+    <div class="fadmin">
+      <button class="reset" id="themebtn">Тёмная тема</button>
+      <button class="reset" id="ownertoggle2">Режим владельца</button>
+      <button class="reset ownly" id="export">Скачать все данные (JSON)</button>
+      <button class="reset ownly" id="import">Загрузить из файла</button>
+      <input type="file" id="importfile" accept="application/json,.json" hidden>
+      <!-- Кнопка «Очистить библиотеку» убрана по решению владельца. Если понадобится:
+           вернуть <button class="reset ownly" id="wipe">Очистить библиотеку</button> сюда
+           и обработчик в конце блока «Экспорт и импорт». -->
+    </div>
+  </footer>
+</div>
+
+<!-- ================= ФОРМА КНИГИ ================= -->
+<div class="overlay" id="frm">
+  <div class="formwrap">
+    <div class="bclose">
+      <strong id="frmtitle" style="font-family:var(--serif);font-size:19px">Новая книга</strong>
+      <button class="btn" data-fclose>Закрыть</button>
+    </div>
+    <form class="bform" id="bookform">
+      <div class="fld wide">
+        <label>Название <span class="req">*</span></label>
+        <input name="title" placeholder="Мастер и Маргарита">
+      </div>
+      <div class="fld">
+        <label>Автор <span class="req">*</span></label>
+        <input name="author" placeholder="Имя Фамилия">
+      </div>
+      <div class="fld">
+        <label>Серия</label>
+        <input name="series" placeholder="Если книга из серии">
+      </div>
+      <div class="fld">
+        <label>Номер в серии</label>
+        <input name="vol" type="number" min="1" placeholder="3">
+      </div>
+      <div class="fld">
+        <label>Год прочтения <span class="req">*</span></label>
+        <input name="year" type="number" min="1900" max="2100" placeholder="2021">
+      </div>
+      <div class="fld wide">
+        <label>Вернусь? <span class="req">*</span></label>
+        <div class="vpick" id="vpick">
+          <button type="button" data-v="yes">Вернусь</button>
+          <button type="button" data-v="no">Один раз</button>
+        </div>
+        <div class="hint">Единственная оценка в библиотеке. Больше никаких баллов.</div>
+        <label class="fcheck" style="margin-top:14px">
+          <input type="checkbox" name="fav" id="favbox"> Особенно любимая
+        </label>
+        <div class="hint" id="favhint" hidden>Отдельная узкая полка: только те, к которым захочется вернуться снова и снова. Необязательно.</div>
+      </div>
+      <div class="fld wide">
+        <label>Жанры</label>
+        <div class="gchips" id="gchips"></div>
+        <div class="gadd">
+          <input name="newgenre" id="newgenre" placeholder="Новый жанр и Enter">
+        </div>
+      </div>
+      <div class="fld wide">
+        <label>Заметка</label>
+        <textarea name="note" rows="9" placeholder="Что понравилось и что зацепило. Если писать нечего — оставьте пустым, книга всё равно останется в списке"></textarea>
+        <div class="hint">Единственное текстовое поле книги. Длинный разбор — тоже сюда.</div>
+      </div>
+      <div class="fld wide">
+        <label>Цитата 1</label>
+        <textarea name="q1" rows="2"></textarea>
+      </div>
+      <div class="fld wide">
+        <label>Цитата 2</label>
+        <textarea name="q2" rows="2"></textarea>
+      </div>
+      <div class="fld wide">
+        <label>Цитата 3</label>
+        <textarea name="q3" rows="2"></textarea>
+      </div>
+      <div class="fld">
+        <label>Страница цитаты</label>
+        <input name="qpage" placeholder="с. 214">
+      </div>
+      <div class="fld">
+        <label>Формат</label>
+        <select name="format" id="f-format"></select>
+      </div>
+      <div class="fld">
+        <label>Язык</label>
+        <input name="lang" list="langlist" placeholder="Русский">
+        <datalist id="langlist">
+          <option value="Русский"><option value="Английский"><option value="Перевод с английского">
+          <option value="Перевод с французского"><option value="Перевод с немецкого"><option value="Другое">
+        </datalist>
+      </div>
+      <div class="fld wide">
+        <label>Ссылка</label>
+        <input name="url" placeholder="https://…">
+      </div>
+    </form>
+    <div class="err" id="ferr"></div>
+    <div class="fbtns">
+      <button class="btn" data-fclose>Отмена</button>
+      <button class="btn primary" id="fsave">Сохранить книгу</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span id="toasttxt"></span><button id="toastact" hidden>Вернуть</button></div>
+
+<div class="overlay" id="ov">
+  <div class="book">
+    <div class="bclose">
+      <a href="#" id="back">← Назад к каталогу</a>
+      <button class="btn" id="bclose2">Закрыть</button>
+    </div>
+    <div id="bbody"></div>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   ДЕМО-ДАННЫЕ. Потом заменятся на JSON из Google Таблицы.
+   Поля: t название, a автор, ser серия, vol том, y год,
+         v вердикт (yes/no), fav особенно любимая, g жанры,
+         note заметка, q цитаты, qpage страница
+   ========================================================= */
+/* ---------- Демонстрационные данные ----------
+   Структура записи:
+   t название · a автор · y год · v вердикт (yes/no) · fav особенно любимая
+   g жанры [] · ser серия · vol номер тома
+   note заметка · q цитаты [] · qpage страница цитаты
+   fmt формат · lang язык · url ссылка
+   ========================================================= */
+const DEMO=[
+{id:1,t:"Мастер и Маргарита",a:"Михаил Булгаков",y:2021,v:"yes",g:["Фантастика","Классика"],
+ fav:1,
+ note:"Перечитывала трижды. Первый раз поняла четверть, второй — половину, третий — всё.\nСписок Балзамонова — это отдельный детектив внутри детектива.",
+ q:["Любовь — это всегдашняя попытка сделать из другого самого себя.","Все счастливые люди похожи друг на друга, каждый несчастливый человек несёт в себе мир внутри."]},
+{id:2,t:"Дюна",a:"Фрэнк Герберт",y:2023,v:"yes",g:["Фантастика"],
+ note:"Первая часть — экологический роман без морали, вторая — политический без злодеев. Ни одна экранизация этого не передала.",
+ q:["Начало — это самое важное время для любого дела, потому что именно тогда решается, чем оно станет."]},
+{id:3,t:"Три товарища",a:"Эрих Мария Ремарк",y:2022,v:"no",g:["Классика"],
+ note:"Патрик кланяется в баре. Ничего не происходит, и это всё. Читается за вечер, помнится надолго. Про дружбу без объяснений.",
+ 
+ q:["В молодости мы боимся смерти, в старости — жизни."]},
+{id:4,t:"О дивный новый мир",a:"Олдос Хаксли",y:2020,v:"no",g:["Фантастика"],
+ note:"Мурашки от описания сенсорного счастья. Перечитать не захотелось, но и бросить было жалко."},
+{id:5,t:"В поисках утраченного времени. Том 1",a:"Марсель Пруст",y:2025,v:"yes",fav:1,
+ ser:"В поисках утраченного времени",vol:1,g:["Классика"],
+ note:"Комбобль и мадлен — самое верное про счастье в книгах. Здесь я наконец поняла, зачем Пруст это затевал."}
+ ];
+
+/* ================= ГЛАВНЫЙ ПЕРЕКЛЮЧАТЕЛЬ =================
+ *
+ *  Пустая строка  → работает демо-режим: книги лежат в памяти браузера.
+ *  Адрес /exec    → сайт читает и пишет в Google Таблицу.
+ *
+ *  Адрес берётся из шага 4 инструкции
+ *  «таблица\Как настроить Google Таблицу.md».
+ *  Обе строки можно в любой момент вернуть пустыми — сайт продолжит
+ *  работать как раньше, ничего не сломается.
+ *
+ *  ПАРОЛЬ В ФАЙЛ НЕ ВПИСЫВАЕМ — сайт лежит в открытом интернете,
+ *  и всё, что есть в коде страницы, видно каждому.
+ *  Пароль вводится один раз на устройстве и хранится только в браузере:
+ *      REMOTE_TOKEN = ""  — пароль спрашивается при каждом новом устройстве
+ *                          (заполнять не нужно, так уже стоит)
+ *      OWNER_PW    = "…"  — если вписать, вход будет по этому паролю
+ *  Держим оба пустыми: вход только по тому паролю, что вы вводите сами.
+ * -------------------------------------------------------- */
+var REMOTE = "https://script.google.com/macros/s/AKfycbxBEzPs0BOQPKJpRG5V4bwwEjzw16Z6wR5atA8meLW638CHlMFmyG_WLXu-3NAG8O-IHw/exec";
+var REMOTE_TOKEN = "";
+var OWNER_PW    = "";
+
+/* ================= Тексты сайта =================
+   В демо-режиме берутся отсюда. Как только появится лист «Настройки»
+   в таблице, значения приедут оттуда и перекроют эти. */
+const SETUP={
+  "Заголовок":"Библиотека прочитанного",
+  "Подзаголовок":"Все книги, которые я дочитала. Что из этого зацепило и к чему хочу вернуться.",
+  "Легенда — Вернусь":"К этой книге хочется вернуться. Читала и перечитываю, или непременно прочитаю ещё раз.",
+  "Легенда — Один раз":"Понравилась, но второго раза не будет. Своё дело сделала — и на этом спасибо.",
+  "О библиотеке — зачем":"Здесь только то, что я дочитала. Непрочитанное, брошенное и «хочу прочитать» сюда не попадает — это не список покупок, а список прочитанного.",
+  "О библиотеке — про заметки":"У каждой книги одна заметка: что понравилось и что зацепило. Заметка необязательна — если писать нечего, книга всё равно остаётся в списке.",
+  "О библиотеке — про обложки":"Обложек нет намеренно. Это каталог текста, а не витрина.",
+  "О библиотеке — про оценки":"У книги нет оценки в баллах и нет звёзд. Есть только одно из двух: «Вернусь» или «Один раз». Это обязательное поле — оно заполняется всегда. Баллы превращают чтение в отчёт, поэтому их здесь нет.",
+  "Подпись в подвале":"Сделано вручную, без подрядчиков."
+};
+/** Значение из настроек; если ключа нет — показываем прочерк, а не пустоту. */
+function txt(k){ const v=SETUP[k]; return typeof v==="string"&&v.trim()?v:""; }
+function legend(v){ return v==="yes"?txt("Легенда — Вернусь"):txt("Легенда — Один раз"); }
+
+/** Раздать тексты по страницам. Вызывается и в демо-режиме, и после загрузки из таблицы. */
+function applySetup(){
+  document.title=txt("Заголовок")+" — библиотека прочитанного";
+  const h=document.querySelector("header h1"); if(h)h.textContent=txt("Заголовок")||h.textContent;
+  const s=document.querySelector("header .sub"); if(s)s.textContent=txt("Подзаголовок")||s.textContent;
+  if(SETUP.__loaded)render();
+}
+
+/* ================= Хранилище ================= */
+const KEY="biblioteka.books.v1", OWNKEY="biblioteka.owner.v1", TKEY="biblioteka.token.v1";
+const clone=x=>JSON.parse(JSON.stringify(x));
+
+const REMOTE_ON = !!REMOTE;
+/* Пароль один, а не два. Когда сайт подключён к таблице, вход в режим владельца
+   идёт тем же паролем, что и запись в таблицу, — иначе пришлось бы помнить два.
+   Если пароль в файле не задан, его вводят руками и он запоминается
+   в этом браузере (см. tryPw). */
+const PW = REMOTE_ON ? (OWNER_PW||REMOTE_TOKEN) : "biblioteka";
+
+/* Токен для записи: зашит в файл — берём оттуда, иначе — из памяти браузера. */
+let TOKEN = REMOTE_TOKEN || readToken();
+function readToken(){
+  try{ return localStorage.getItem(TKEY)||""; }catch(e){ return ""; }
+}
+function saveToken(v){
+  TOKEN=v||"";   /* и в текущую сессию — иначе запись в таблицу уйдёт без пароля */
+  try{ if(v)localStorage.setItem(TKEY,v); else localStorage.removeItem(TKEY); }catch(e){}
+}
+
+let BOOKS=REMOTE_ON?[]:loadBooks();
+let NOTES=null;          // тяжёлый файл с заметками, подгружается при открытии книги
+let NOTES_LOADED=false;  // грузили ли уже; защита от повторных запросов
+
+function loadBooks(){
+  try{ const r=localStorage.getItem(KEY); if(r){ const a=JSON.parse(r); if(Array.isArray(a)&&a.length) return a; } }catch(e){}
+  return clone(DEMO);
+}
+function saveBooks(){
+  if(REMOTE_ON)return;   // в режиме таблицы источник истины — Google, не браузер
+  try{ localStorage.setItem(KEY,JSON.stringify(BOOKS)); }
+  catch(e){ toast("Не удалось сохранить: браузер переполнен"); }
+}
+
+/* ---------------- Обмен с Google Таблицей ---------------- */
+
+/** Тексты сайта из листа «Настройки». Ошибка здесь не страшна:
+    остаются зашитые в файл значения, сайт продолжает работать. */
+async function loadSetup(){
+  if(!REMOTE_ON)return;
+  try{
+    const s=await remoteGet("settings");
+    if(s&&typeof s==="object"){
+      Object.keys(s).forEach(k=>{ if(typeof s[k]==="string"&&s[k].trim())SETUP[k]=s[k]; });
+      SETUP.__loaded=true;
+    }
+  }catch(e){ /* тексты останутся зашитыми в файл */ }
+  applySetup();
+}
+
+async function remoteGet(action){
+  const r=await fetch(REMOTE+"?action="+action,{redirect:"follow"});
+  const txt=await r.text();
+  let data;
+  try{ data=JSON.parse(txt); }catch(e){ throw new Error("Сервер вернул не тот ответ"); }
+  if(data&&data.error) throw new Error(data.error);
+  return data;
+}
+
+/** Запись в таблицу. Формат тела — urlencoded: так надёжнее, чем JSON. */
+async function remotePost(payload){
+  const body="payload="+encodeURIComponent(JSON.stringify(
+    Object.assign({token:TOKEN},payload)));
+  const r=await fetch(REMOTE,{
+    method:"POST",
+    headers:{"Content-Type":"application/x-www-form-urlencoded"},
+    body:body, redirect:"follow"
+  });
+  const data=await r.json();
+  if(!data.ok) throw new Error(data.error||"Таблица не приняла запись");
+  return data;
+}
+
+/** Перечитать лёгкий список — после любой правки. */
+async function remoteReload(){
+  const list=await remoteGet("index");
+  BOOKS=Array.isArray(list)?list:[];
+  buildFilters(); render(); counters();
+}
+
+/** Заметки нужны только для одной открытой книги — грузим один раз. */
+async function ensureNotes(id){
+  if(!REMOTE_ON)return;
+  if(!NOTES){
+    try{ NOTES=await remoteGet("notes"); }
+    catch(e){ toast("Заметки не загрузились: "+e.message); return; }
+  }
+  const n=NOTES[id]; if(!n)return;
+  const b=BOOKS.find(x=>x.id===id); if(!b)return;
+  Object.assign(b,n);
+}
+function counters(){
+  document.getElementById("c-all").textContent=BOOKS.length;
+  document.getElementById("c-yes").textContent=BOOKS.filter(b=>b.v==="yes").length;
+  document.getElementById("c-no").textContent=BOOKS.filter(b=>b.v==="no").length;
+  const d=BOOKS.length&&!REMOTE_ON?' · <a href="#" id="dl">скачать копию, чтобы не потерять</a>':'';
+  document.getElementById("foot").innerHTML=
+    `${txt("Подпись в подвале")} · ${BOOKS.length} ${plural(BOOKS.length,"книга","книги","книг")}${d}`;
+  const l=document.getElementById("dl");
+  if(l)l.onclick=e=>{e.preventDefault();exportData()};
+}
+
+/* ================= Тёмная тема =================
+   Выбор помнится в браузере. Если человек ещё ни разу не переключал,
+   берём системную настройку — уважаем привычку, ничего не спрашивая. */
+const THEMEKEY="biblioteka.theme.v1";
+function applyTheme(t){
+  if(t==="dark")document.documentElement.setAttribute("data-theme","dark");
+  else document.documentElement.removeAttribute("data-theme");
+  const b=document.getElementById("themebtn");
+  if(b)b.textContent=t==="dark"?"Светлая тема":"Тёмная тема";
+}
+function toggleTheme(){
+  const dark=document.documentElement.getAttribute("data-theme")==="dark";
+  applyTheme(dark?"light":"dark");
+  try{localStorage.setItem(THEMEKEY,dark?"light":"dark")}catch(e){}
+}
+try{
+  const saved=localStorage.getItem(THEMEKEY);
+  applyTheme(saved||(window.matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"));
+}catch(e){ applyTheme("light"); }
+document.getElementById("themebtn").addEventListener("click",toggleTheme);
+
+/* ================= Режим владельца ================= */
+function setOwner(on){
+  document.body.classList.toggle("owner",on);
+  try{localStorage.setItem(OWNKEY,on?"1":"0")}catch(e){}
+  document.getElementById("oin").classList.toggle("show",!on);
+  document.getElementById("pwmsg").textContent="";
+  document.getElementById("pw").value="";
+  document.getElementById("ownertoggle2").textContent=on?"Выйти из режима владельца":"Режим владельца";
+  render();
+}
+/* Вход: обычное поле ввода вместо prompt() — prompt() блокируется в некоторых
+   браузерах и при открытии файла из OneDrive, из-за чего войти было невозможно. */
+function askOwner(){
+  if(document.body.classList.contains("owner"))return setOwner(false);
+  const o=document.getElementById("oin");
+  o.classList.add("show");
+  const p=document.getElementById("pw");
+  p.focus();
+  p.scrollIntoView({block:"center"});
+}
+async function tryPw(){
+  /* .trim() — потому что копирование из журнала часто тащит пробел
+     или невидимый перенос строки, и пароль перестаёт совпадать. */
+  const v=document.getElementById("pw").value.trim();
+  const inp=document.getElementById("pw"), msg=document.getElementById("pwmsg");
+  const no=()=>{ msg.textContent="Неверный пароль"; inp.select(); };
+  if(!v){ msg.textContent="Введите пароль"; return; }
+
+  /* Пароль зашит в файл — сверяем на месте, без похода в таблицу. */
+  if(!REMOTE_ON || PW){
+    if(v!==PW)no();
+    else{ setOwner(true); toast("Режим владельца включён"); }
+    return;
+  }
+
+  /* Пароля в файле нет, а значит проверить его по-настоящему может только
+     сама таблица. action:"check" только читает таблицу и ничего не меняет. */
+  msg.textContent="Проверяю…";
+  const was=TOKEN;
+  saveToken(v);
+  try{
+    await remotePost({action:"check"});
+    setOwner(true); toast("Режим владельца включён");
+  }catch(e){
+    saveToken(was);   /* неверный пароль в памяти не оставляем */
+    no();
+  }
+}
+document.getElementById("ownertoggle").addEventListener("click",askOwner);
+document.getElementById("ownertoggle2").addEventListener("click",askOwner);
+document.getElementById("pwin").addEventListener("click",tryPw);
+document.getElementById("pw").addEventListener("keydown",e=>{
+  if(e.key==="Enter"){ e.preventDefault(); tryPw(); }
+});
+/* Режим владельца возвращаем только если он у нас действительно есть:
+   без пароля в браузере кнопки добавления всё равно не сработают,
+   а выглядело бы так, будто сайт сломан. */
+try{ if(localStorage.getItem(OWNKEY)==="1" && (!REMOTE_ON||TOKEN)){
+      document.body.classList.add("owner");
+      document.getElementById("oin").classList.remove("show");
+} }catch(e){}
+
+/* ================= Уведомление ================= */
+let toastTimer=null;
+function toast(txt,actLabel,act){
+  const t=document.getElementById("toast");
+  document.getElementById("toasttxt").textContent=txt;
+  const b=document.getElementById("toastact");
+  if(act){ b.hidden=false; b.textContent=actLabel||"Вернуть";
+    b.onclick=()=>{ t.classList.remove("on"); act(); };
+  } else b.hidden=true;
+  t.classList.add("on");
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove("on"),act?9000:3500);
+}
+
+/* ================= Форма: добавление и редактирование ================= */
+let editing=null, formVerdict=null, formGenres=new Set(), FORM_TICK=0;
+const F=()=>document.getElementById("bookform");
+document.getElementById("f-format").innerHTML='<option value="">—</option>'+
+  ["Бумажная","Электронная","Аудио"].map(x=>"<option>"+x+"</option>").join("");
+
+function paintGenres(){
+  const u=unique("g");
+  document.getElementById("gchips").innerHTML=u.map(g=>
+    '<button type="button" class="chip'+(formGenres.has(g)?" on":"")+'" data-g="'+esc(g)+'">'+esc(g)+'</button>').join("")
+    ||'<span class="hint">Пока ни одного жанра — добавьте ниже.</span>';
+}
+document.getElementById("gchips").addEventListener("click",e=>{
+  const c=e.target.closest("[data-g]"); if(!c)return;
+  const g=c.dataset.g;
+  formGenres.has(g)?formGenres.delete(g):formGenres.add(g);
+  paintGenres();
+});
+document.getElementById("newgenre").addEventListener("keydown",e=>{
+  if(e.key!=="Enter")return;
+  e.preventDefault();
+  const v=e.target.value.trim();
+  if(v){formGenres.add(v);paintGenres()}
+  e.target.value="";
+});
+document.getElementById("vpick").addEventListener("click",e=>{
+  const b=e.target.closest("[data-v]"); if(!b)return;
+  formVerdict=b.dataset.v;
+  [...document.querySelectorAll("#vpick button")].forEach(x=>x.classList.toggle("on",x===b));
+  paintFavHint();
+});
+
+function openForm(id){
+  // в режиме таблицы заметки лежат в отдельном файле — сначала подгружаем их
+  if(REMOTE_ON&&id&&!NOTES_LOADED){
+    toast("Загружаю заметки…");
+    /* если за это время открыли другую книгу или закрыли форму —
+       подгруженные заметки не должны возвращать старую форму */
+    const mine=FORM_TICK;
+    ensureNotes(id).then(()=>{ if(mine!==FORM_TICK)return; NOTES_LOADED=true; openForm(id); });
+    return;
+  }
+  editing=id||null;
+  const b=id?BOOKS.find(x=>x.id===id):null;
+  document.getElementById("frmtitle").textContent=b?"Редактирование":"Новая книга";
+  document.getElementById("ferr").classList.remove("on");
+  const f=F().elements;
+  f.title.value=b?b.t:""; f.author.value=b?b.a:""; f.series.value=b?(b.ser||""):"";
+  f.vol.value=b?(b.vol||""):""; f.year.value=b?b.y:"";
+  f.note.value=b?(b.note||""):"";
+  f.q1.value=b&&b.q?b.q[0]||"":""; f.q2.value=b&&b.q?b.q[1]||"":""; f.q3.value=b&&b.q?b.q[2]||"":""; 
+  f.qpage.value=b?(b.qpage||""):""; f.format.value=b?(b.fmt||""):"";
+  f.lang.value=b?(b.lang||""):"";
+  f.url.value=b?(b.url||""):"";
+  f.fav.checked=!!(b&&b.fav);
+  f.newgenre.value="";
+  formVerdict=b?b.v:null;
+  formGenres=new Set(b?b.g||[]:[]);
+  [...document.querySelectorAll("#vpick button")].forEach(x=>x.classList.toggle("on",!!b&&x.dataset.v===b.v));
+  paintFavHint();
+  paintGenres();
+  document.getElementById("frm").classList.add("open");
+  window.scrollTo(0,0);
+  f.title.focus();
+}
+/* Подсказка про «особенно любимую» появляется только при вердикте «Вернусь».
+   На «Один раз» она бессмысленна — поля прячем и галочку снимаем. */
+function paintFavHint(){
+  const on=formVerdict==="yes";
+  document.getElementById("favhint").hidden=!on;
+  if(!on)document.getElementById("favbox").checked=false;
+}
+function closeForm(){
+  document.getElementById("frm").classList.remove("open");
+  editing=null;   /* иначе форма остаётся «привязанной» к прошлой книге */
+  FORM_TICK++;    /* и отменяем подгрузку заметок, если она ещё идёт */
+}
+document.addEventListener("click",e=>{ if(e.target.closest("[data-fclose]"))closeForm() });
+document.getElementById("add").addEventListener("click",()=>openForm(null));
+document.getElementById("fsave").addEventListener("click",saveBook);
+
+/* Приводит строку к виду, в котором её удобно искать: один пробел,
+   без краёв. Двойные пробелы приходят из книг, набранных вручную,
+   и молча ломают поиск по названию. */
+const tidy=s=>String(s||"").replace(/\s+/g," ").trim();
+
+function saveBook(){
+  const f=F().elements;
+  const t=tidy(f.title.value), a=tidy(f.author.value);
+  const y=parseInt(f.year.value,10);
+  const err=m=>{ const e=document.getElementById("ferr"); e.textContent=m; e.classList.add("on"); };
+  if(!t)return err("Введите название книги.");
+  if(!a)return err("Введите автора.");
+  if(Number.isNaN(y)||y<1900||y>2100)return err("Год прочтения должен быть числом, например 2021.");
+  if(!formVerdict)return err("Выберите «Вернусь» или «Один раз» — это единственная оценка.");
+
+  /* жанр из поля ввода считаем только если он стал жанром:
+     ввод без Enter раньше молча терялся, и книга оставалась без жанра */
+  const typed=tidy(f.newgenre?f.newgenre.value:"");
+  if(typed && !formGenres.has(typed)) formGenres.add(typed);
+  const gs=[...formGenres].map(g=>tidy(g)).filter(Boolean);
+
+  const rec={id:editing||Date.now(),t,a,
+    ser:tidy(f.series.value)||undefined, vol:parseInt(f.vol.value,10)||undefined,
+    y, v:formVerdict, fav:f.fav.checked?1:0, g:gs,
+    note:f.note.value.trim()||undefined,
+    q:[f.q1.value,f.q2.value,f.q3.value].map(x=>tidy(x)).filter(Boolean),
+    qpage:tidy(f.qpage.value)||undefined, fmt:f.format.value||undefined,
+    lang:tidy(f.lang.value)||undefined,
+    url:tidy(f.url.value)||undefined};
+
+  const wasNew=!editing;
+  if(editing){ const i=BOOKS.findIndex(x=>x.id===editing); if(i>=0)BOOKS[i]={...BOOKS[i],...rec}; }
+  else BOOKS.push(rec);
+
+  if(REMOTE_ON){
+    closeForm();
+    toast("Сохраняю в таблицу…");
+    remotePost({action:"save", book:rec})
+      .then(async res=>{
+        await remoteReload();
+        NOTES_LOADED=false; NOTES=null;
+        counters(); buildFilters(); refresh();
+        toast((wasNew?"Книга добавлена: ":"Книга сохранена: ")+t);
+      })
+      .catch(e=>{ toast("Не получилось: "+e.message); openForm(editing); });
+    return;
+  }
+
+  closeForm();
+  saveBooks(); buildFilters(); counters(); refresh();
+  toast(wasNew?"Книга добавлена: "+t:"Книга сохранена: "+t);
+}
+function delBook(id){
+  const i=BOOKS.findIndex(x=>x.id===id); if(i<0)return;
+
+  if(REMOTE_ON){
+    const title=(BOOKS[i]||{}).t||"";
+    if(!confirm("Удалить «"+title+"» из таблицы Google?"))return;
+    toast("Удаляю…");
+    remotePost({action:"delete", id:id})
+      .then(async()=>{ await remoteReload(); NOTES_LOADED=false; NOTES=null; counters(); buildFilters(); refresh(); toast("Удалено: "+title); })
+      .catch(e=>toast("Не получилось удалить: "+e.message));
+    return;
+  }
+
+  const [b]=BOOKS.splice(i,1);
+  saveBooks(); buildFilters(); counters(); refresh();
+  toast("Удалено: "+b.t,"Вернуть",()=>{
+    BOOKS.splice(i,0,b); saveBooks(); buildFilters(); counters(); refresh();
+    toast("Возвращено: "+b.t);
+  });
+}
+
+/* ================= Экспорт и импорт ================= */
+function exportData(){
+  const blob=new Blob([JSON.stringify(BOOKS,null,1)],{type:"application/json"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob); a.download="biblioteka.json"; a.click();
+}
+document.getElementById("export").addEventListener("click",exportData);
+document.getElementById("import").addEventListener("click",()=>document.getElementById("importfile").click());
+document.getElementById("importfile").addEventListener("change",e=>{
+  const f=e.target.files[0]; if(!f)return;
+  const r=new FileReader();
+  r.onload=()=>{
+    try{
+      const a=JSON.parse(r.result);
+      if(!Array.isArray(a))throw 0;
+      if(!confirm("Заменить текущий список ("+BOOKS.length+" книг) на файл с "+a.length+" книгами?"))return;
+      BOOKS=a; saveBooks(); buildFilters(); render(); counters(); toast("Загружено книг: "+a.length);
+    }catch(err){ toast("Не получилось прочитать файл") }
+  };
+  r.readAsText(f); e.target.value="";
+});
+// Обработчик кнопки «Очистить библиотеку» — см. комментарий в подвале.
+
+/* ================= Состояние ================= */
+const S={q:"",sort:"t",view:"list",v:new Set(),y:new Set(),g:new Set(),a:new Set(),s:new Set(),
+         note:false,quote:false,fav:false};
+const fam=s=>{const p=s.split(/\s+/);return p.length>1?p[p.length-1]:s};
+const norm=s=>s.toLowerCase().replace(/[«»"']/g,"").replace(/ё/g,"е").trim();
+const unique=k=>[...new Set(BOOKS.flatMap(b=>Array.isArray(b[k])?b[k]:[b[k]]).filter(x=>typeof x==="string"&&x))].sort((a,b)=>a.localeCompare(b,"ru"));
+
+/* ================= Поиск: сначала точное совпадение, затем опечатки ================= */
+function lev(a,b){
+  const m=a.length,n=b.length;
+  if(!m)return n; if(!n)return m;
+  let prev=Array.from({length:n+1},(_,i)=>i),cur=new Array(n+1);
+  for(let i=1;i<=m;i++){
+    cur[0]=i;
+    for(let j=1;j<=n;j++)
+      cur[j]=Math.min(prev[j]+1,cur[j-1]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1));
+    [prev,cur]=[cur,prev];
+  }
+  return prev[n];
+}
+function has(b,needle){
+  const fields=[b.t,b.a,b.ser,(b.g||[]).join(" "),b.note,(b.q||[]).join(" ")].filter(Boolean).map(norm);
+  if(fields.some(h=>h.includes(needle)))return true;
+  if(needle.length<4)return false;
+  const tol=Math.min(2,Math.floor(needle.length/4));
+  for(const h of fields)
+    for(const w of h.split(/[^0-9a-zа-я]+/)){
+      if(Math.abs(w.length-needle.length)>tol)continue;
+      if(lev(w,needle)<=tol)return true;
+    }
+  return false;
+}
+
+/* ================= Фильтрация ================= */
+function filtered(){
+  const out=BOOKS.filter(b=>{
+    if(S.v.size&&!S.v.has(b.v))return false;
+    if(S.y.size&&!S.y.has(String(b.y)))return false;
+    if(S.g.size&&!b.g.some(x=>S.g.has(x)))return false;
+    if(S.s.size&&!S.s.has(b.ser||""))return false;
+    if(S.a.size&&!S.a.has(b.a))return false;
+    if(S.note&&!b.note)return false;
+    if(S.quote&&!(b.q||[]).length)return false;
+    if(S.fav&&!b.fav)return false;
+    if(S.q&&!has(b,S.q))return false;
+    return true;
+  });
+  const cmp={
+    t:(x,y)=>x.t.localeCompare(y.t,"ru"),
+    a:(x,y)=>fam(x.a).localeCompare(fam(y.a),"ru")||x.t.localeCompare(y.t,"ru"),
+    v_yes:(x,y)=>(x.v==="yes"?0:1)-(y.v==="yes"?0:1)||x.y-y.y,
+    v_no:(x,y)=>(x.v==="no"?0:1)-(y.v==="no"?0:1)||x.y-y.y,
+    y_desc:(x,y)=>y.y-x.y||x.t.localeCompare(y.t,"ru"),
+    y_asc:(x,y)=>x.y-y.y||x.t.localeCompare(y.t,"ru"),
+    note:(x,y)=>(y.note||"").length-(x.note||"").length,
+    quotes:(x,y)=>((y.q||[]).length)-((x.q||[]).length),
+    rand:()=>Math.random()-.5
+  };
+  return out.sort(cmp[S.sort]);
+}
+
+/* ================= Отрисовка ================= */
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function badges(b){
+  let h=`<span class="badge v">${b.v==="yes"?"Вернусь":"Один раз"}</span>`;
+  if(b.fav)h+=`<span class="badge fav">Особенно любимая</span>`;
+  if(b.ser)h+=`<span class="badge">${esc(b.ser)}${b.vol?" · том "+b.vol:""}</span>`;
+  (b.g||[]).forEach(x=>h+=`<span class="badge">${esc(x)}</span>`);
+  if((b.q||[]).length)h+=`<span class="badge">${b.q.length} ${plural(b.q.length,"цитата","цитаты","цитат")}</span>`;
+  return `<div class="badges">${h}</div>`;
+}
+function rowHTML(b){
+  return `<div class="row" data-id="${b.id}">
+    <span class="mk ${b.v}"></span>
+    <div>
+      <p class="bt">${esc(b.t)}</p>
+      <div class="ba">${esc(b.a)}${b.ser?` · ${esc(b.ser)}${b.vol?", том "+b.vol:""}`:""}</div>
+      ${b.note?`<div class="bn">${esc(b.note.slice(0,150))}${b.note.length>150?"…":""}</div>`:""}
+      ${badges(b)}
+    </div>
+    <div class="bm">${b.y}</div>
+    <div class="rowact">
+      <button class="mini" data-edit="${b.id}" title="Редактировать">✎</button>
+      <button class="mini del" data-del="${b.id}" title="Удалить">✕</button>
+    </div>
+  </div>`;
+}
+function cellHTML(b){
+  return `<div class="cell" data-id="${b.id}">
+    <p class="bt">${esc(b.t)}</p><div class="ba">${esc(b.a)}</div>
+    <div class="ba"><span class="mk ${b.v}" style="display:inline-block;width:6px;height:6px;border-radius:2px;margin-right:6px"></span>${b.y}</div>
+  </div>`;
+}
+function render(){
+  const list=filtered();
+  document.getElementById("rcount").textContent=`Найдено ${list.length} ${plural(list.length,"книга","книги","книг")} из ${BOOKS.length}`;
+
+  const out=document.getElementById("out");
+  if(!list.length){
+    out.innerHTML=`<div class="empty"><b>Ничего не нашлось</b>Попробуйте убрать часть условий или изменить запрос.</div>`;
+  }else if(S.view==="list"){
+    out.innerHTML=`<div class="rows">${list.map(rowHTML).join("")}</div>`;
+  }else if(S.view==="grid"){
+    out.innerHTML=`<div class="grid">${list.map(cellHTML).join("")}</div>`;
+  }else{
+    const sorted=[...list].sort((x,y)=>x.t.localeCompare(y.t,"ru"));
+    let h="",L="";
+    sorted.forEach(b=>{const c=b.t[0].toUpperCase();
+      if(c!==L){L=c;h+=`<div class="letter">${esc(c)}<span>${sorted.filter(x=>x.t[0].toUpperCase()===c).length}</span></div>`}
+      h+=rowHTML(b)});
+    out.innerHTML=h;
+  }
+  renderActive();
+}
+
+/* =====================================================================
+ *  СТРАНИЦЫ САЙТА
+ *  В прототипе адреса живут в адресной строке как #/authors — так страницы
+ *  работают даже если открыть файл двойным щелчком, без сервера.
+ *  На настоящем хостинге эти же адреса станут /authors и т. д.
+ * ================================================================== */
+
+/* Разбор адреса вида #/series/Название или #/author/Пруст.
+   Всё после первого слэша — имя полки: /author/Марсель Пруст */
+function resolve(hash){
+  const parts=String(hash||"").replace(/^#/,"").replace(/^\/+/,"").split(/[/?]/).filter(Boolean);
+  const head=parts[0]||"";
+  const param=parts[1]?decodeURIComponent(parts[1]):"";
+  switch(head){
+    case "":        return {key:"/",        render:viewHome};
+    case "catalog": return {key:"/catalog", render:null};
+    case "lists":   return {key:"/lists",   render:viewLists};
+    case "authors": return {key:"/authors", render:viewAuthors};
+    case "author":  return {key:"/authors", render:function(){return viewAuthorShelf(param)}};
+    case "series":  return {key:"/series",  render:param?function(){return viewSeriesShelf(param)}:viewSeries};
+    case "genres":  return {key:"/genres",  render:viewGenres};
+    case "genre":   return {key:"/genres",  render:function(){return viewGenreShelf(param)}};
+    case "quotes":  return {key:"/quotes",  render:viewQuotes};
+    case "stats":   return {key:"/stats",   render:viewStats};
+    case "about":   return {key:"/about",   render:viewAbout};
+    default:        return {key:"/catalog", render:null};
+  }
+}
+
+function go(hash){
+  const r=resolve(hash);
+  document.querySelectorAll(".nav a").forEach(a=>a.classList.toggle("on",a.dataset.r===r.key));
+  const isCatalog=!r.render;   /* у каталога своя отрисовка, остальные строятся функцией */
+  document.querySelector(".toolbar").hidden=!isCatalog;
+  document.getElementById("out").parentElement.hidden=!isCatalog;
+  document.getElementById("pg").hidden=isCatalog;
+  if(isCatalog){ document.getElementById("pg").innerHTML=""; render(); return; }
+  document.getElementById("pg").innerHTML=r.render();
+  window.scrollTo(0,0);
+}
+
+/* Перерисовать то, что сейчас открыто: каталог или любую другую страницу */
+function refresh(){
+  const h=location.hash||"#/";
+  if(h.startsWith("#book-")){ render(); return; }
+  go(h);
+}
+
+/* ---------------- Главная: лента по годам ---------------- */
+function viewHome(){
+  const years=[...new Set(BOOKS.map(b=>b.y))].filter(Boolean).sort((a,b)=>b-a);
+  const best=BOOKS.filter(b=>b.v==="yes").sort((a,b)=>(b.note||"").length-(a.note||"").length)[0];
+  /* цитата — самая длинная среди книг «Вернусь»; если цитат нет, берём первую */
+  const allQ=BOOKS.flatMap(b=>(b.q||[]).map(q=>({q,b})));
+  const quote=allQ.filter(x=>x.b.v==="yes").sort((a,b)=>b.q.length-a.q.length)[0]||allQ[0];
+
+  let html=`<div class="page">
+    <h2>Всё, что я дочитала</h2>
+    <p class="lead">${BOOKS.length} книг. Из них «Вернусь» — ${BOOKS.filter(b=>b.v==="yes").length}. Ниже — по годам, от новых к старым.</p>`;
+
+  if(quote){
+    html+=`<div class="secrow" style="margin-top:0">
+      <h3>Цитата, которая запомнилась</h3>
+      <div class="qcard" data-go="${quote.b.id}" style="max-width:60ch">
+        <div class="qt">«${esc(quote.q)}»</div>
+        <div class="qs"><b>${esc(quote.b.t)}</b> · ${esc(quote.b.a)} · ${quote.b.y}</div>
+      </div></div>`;
+  }
+  if(best){
+    html+=`<div class="secrow">
+      <h3>Разбор, с которого стоит начать</h3>
+      <div class="sub">Самая длинная заметка среди книг «Вернусь»</div>
+      <div class="itemrow">
+        <a class="nm" data-go="${best.id}">${esc(best.t)}</a>
+        <div class="rt"><span class="num">${esc(best.a)}</span><span class="num">${best.y}</span></div>
+      </div></div>`;
+  }
+
+  html+=`<div class="secrow"><h3>По годам</h3><div class="sub">Нажмите на год — откроется каталог с фильтром</div>`;
+  html+=`<ul class="yfeed">`;
+  for(const y of years){
+    const list=BOOKS.filter(b=>b.y===y).sort((a,b)=>a.t.localeCompare(b.t,"ru"));
+    const yes=list.filter(b=>b.v==="yes").length;
+    html+=`<li class="yr" data-year="${y}">
+      <span class="y">${y}</span>
+      <div>
+        <div class="tt">${list.map(b=>esc(b.t)).join("<br>")}</div>
+        <div class="meta">${list.length} ${plural(list.length,"книга","книги","книг")} · вернусь ${yes}</div>
+      </div></li>`;
+  }
+  if(!years.length) html+=`<li class="empty">Пока нет ни одной книги.</li>`;
+  html+=`</ul></div></div>`;
+  return html;
+}
+
+/* ---------------- Списки ---------------- */
+function listDefs(){
+  const yes=b=>b.v==="yes", no=b=>b.v==="no";
+  const byNote=(a,b)=>((b.note||"").length-(a.note||"").length);
+  const byYear=(a,b)=>b.y-a.y||a.t.localeCompare(b.t,"ru");
+
+  return [
+    {id:"osoblub", h:"Особенно любимые", d:"Узкая полка: то, к чему хочется вернуться снова и снова",
+     f:()=>BOOKS.filter(b=>b.fav), s:byNote},
+    {id:"vernus", h:"Вернусь", d:"Все книги, к которым хочется вернуться",
+     f:()=>BOOKS.filter(yes), s:byNote},
+    {id:"odinraz", h:"Один раз", d:"Понравились, но второго раза не будет",
+     f:()=>BOOKS.filter(no), s:byYear},
+    {id:"razbory", h:"Подробные заметки", d:"Заметка от 300 символов — настоящий разбор",
+     f:()=>BOOKS.filter(b=>(b.note||"").length>=300), s:byNote},
+    {id:"citaty", h:"С цитатами", d:"Книги, у которых есть хотя бы одна цитата",
+     f:()=>BOOKS.filter(b=>(b.q||[]).length), s:(a,b)=>(b.q||[]).length-(a.q||[]).length},
+    {id:"knigigoda", h:"Книги года", d:"По 10 книг «Вернусь» с каждого года",
+     f:()=>{const out=[];[...new Set(BOOKS.map(b=>b.y))].filter(Boolean).sort((a,b)=>b-a)
+       .forEach(y=>BOOKS.filter(b=>b.y===y&&yes(b)).slice(0,10).forEach(b=>out.push(b)));return out;},
+     s:byYear},
+    {id:"lyubavtory", h:"Любимые авторы", d:"Авторы с наибольшим числом книг «Вернусь»",
+     shelf:true, f:null},
+    {id:"lyubzhanry", h:"Любимые жанры", d:"Жанры с наибольшей долей «Вернусь»",
+     shelf:true, f:null},
+    {id:"mnogocitat", h:"Самые цитируемые", d:"Книги, из которых сохранено больше всего цитат",
+     f:()=>BOOKS.filter(b=>(b.q||[]).length).sort((a,b)=>(b.q||[]).length-(a.q||[]).length||byNote(a,b)).slice(0,20),
+     s:null},
+    {id:"dlinnyeserii", h:"Длинные серии", d:"Серии, в которых прочитано больше всего томов",
+     shelf:true, f:null},
+    {id:"bezpovtorov", h:"Жанры без повторов", d:"Единственные книги в своём жанре",
+     shelf:true, f:null}
+  ];
+}
+
+function viewLists(){
+  const defs=listDefs();
+
+  let html=`<div class="page">
+    <h2>Списки</h2>
+    <p class="lead">Всё считается само из книг. Ничего не придумывается вручную: цифры меняются, когда вы добавляете или правите книгу.</p>`;
+
+  for(const L of defs){
+    let body="";
+    if(L.shelf){
+      body=shelfBody(L.id);
+    }else{
+      const list=L.f().slice().sort(L.s||((a,b)=>0));
+      body=list.length
+        ? `<div class="itemrow" style="border-top:0">
+             <span class="num" style="font-family:var(--mono);font-size:13px;color:var(--ink3)">${list.length}</span>
+             <span style="font-family:var(--sans);font-size:13px;color:var(--ink2)">${list.slice(0,40).map(b=>esc(b.t)).join(", ")}${list.length>40?"…":""}</span>
+           </div>`
+        : `<p class="empty">Пока пусто.</p>`;
+    }
+    html+=`<div class="secrow" style="margin-top:30px">
+      <h3>${esc(L.h)}</h3>
+      <div class="sub">${esc(L.d)}</div>
+      ${body}</div>`;
+  }
+  return html+`</div>`;
+}
+
+function shelfBody(id){
+  if(id==="lyubavtory"){
+    const m=groupCount("a");
+    const rows=Object.entries(m).map(([k,v])=>({k,...v})).sort((x,y)=>y.yes-x.yes||y.total-x.total);
+    return rows.length?rows.map(r=>`<div class="itemrow">
+        <a class="nm" href="#/author/${encodeURIComponent(r.k)}">${esc(r.k)}</a>
+        <div class="rt"><span class="num">${r.yes} из ${r.total}</span></div></div>`).join("")
+      :`<p class="empty">Пока пусто.</p>`;
+  }
+  if(id==="lyubzhanry"){
+    const m={};
+    BOOKS.forEach(b=>(b.g||[]).forEach(g=>{ if(!m[g]) m[g]={t:0,y:0}; m[g].t++; if(b.v==="yes") m[g].y++; }));
+    const rows=Object.entries(m).map(([k,v])=>({k,...v,sh:v.y/v.t})).sort((x,y)=>y.sh-x.sh||y.t-x.t);
+    return rows.length?rows.map(r=>`<div class="itemrow">
+        <a class="nm" href="#/genre/${encodeURIComponent(r.k)}">${esc(r.k)}</a>
+        <div class="rt"><span class="num">${r.t}</span><span class="pct">${Math.round(r.sh*100)} % вернусь</span></div></div>`).join("")
+      :`<p class="empty">Пока пусто.</p>`;
+  }
+  if(id==="dlinnyeserii"){
+    const p=seriesProgress();
+    const rows=Object.entries(p).map(([k,v])=>({k,books:v.nums.length,authors:v.authors}))
+      .sort((a,b)=>b.books-a.books||a.k.localeCompare(b.k,"ru"));
+    return rows.length?rows.map(r=>`<div class="itemrow">
+        <a class="nm" href="#/series/${encodeURIComponent(r.k)}">${esc(r.k)}</a>
+        <div class="rt"><span class="num">${r.books} ${plural(r.books,"том","тома","томов")}${r.authors.length?" · "+esc(r.authors[0]):""}</span></div></div>`).join("")
+      :`<p class="empty">Пока ни одной серии не заведено.</p>`;
+  }
+  if(id==="bezpovtorov"){
+    const cnt={};
+    BOOKS.forEach(b=>(b.g||[]).forEach(g=>cnt[g]=(cnt[g]||0)+1));
+    const rows=BOOKS.filter(b=>(b.g||[]).length===1&&cnt[b.g[0]]===1);
+    return rows.length?rows.map(b=>`<div class="itemrow">
+        <a class="nm" data-go="${b.id}">${esc(b.t)}</a>
+        <div class="rt"><span class="num">${esc(b.g[0])}</span></div></div>`).join("")
+      :`<p class="empty">Пока нет книг, которые были бы единственными в своём жанре.</p>`;
+  }
+  return "";
+}
+
+function groupCount(key){
+  const m={};
+  BOOKS.forEach(b=>{
+    const k=Array.isArray(b[key])?b[key][0]:b[key];
+    if(!k)return;
+    if(!m[k])m[k]={total:0,yes:0};
+    m[k].total++;
+    if(b.v==="yes")m[k].yes++;
+  });
+  return m;
+}
+
+function seriesProgress(){
+  const m={};
+  BOOKS.forEach(b=>{
+    if(!b.ser)return;
+    if(!m[b.ser])m[b.ser]={nums:[],authors:[],yes:0};
+    if(b.vol)m[b.ser].nums.push(b.vol);
+    if(b.a&&!m[b.ser].authors.includes(b.a))m[b.ser].authors.push(b.a);
+    if(b.v==="yes")m[b.ser].yes++;
+  });
+  Object.entries(m).forEach(([k,v])=>{
+    v.nums.sort((a,b)=>a-b);
+    v.max=v.nums[v.nums.length-1]||0;   // насколько далеко зашли по томам — не «сколько всего в серии»
+  });
+  return m;
+}
+
+function plural(n,one,few,many){
+  const a=Math.abs(n)%100, b=a%10;
+  if(a>10&&a<20)return many;
+  if(b>1&&b<5)return few;
+  if(b===1)return one;
+  return many;
+}
+
+/* ---------------- Авторы ---------------- */
+function viewAuthors(){
+  const m={};
+  BOOKS.forEach(b=>{
+    if(!b.a)return;
+    if(!m[b.a])m[b.a]={total:0,yes:0,fav:0,last:0};
+    m[b.a].total++;
+    if(b.v==="yes")m[b.a].yes++;
+    if(b.fav)m[b.a].fav++;
+    m[b.a].last=Math.max(m[b.a].last,b.y||0);
+  });
+  const rows=Object.entries(m).map(([k,v])=>({k,...v})).sort((x,y)=>x.k.localeCompare(y.k,"ru"));
+  const letters={};
+  rows.forEach(r=>{ const L=firstLetter(r.k); (letters[L]=letters[L]||[]).push(r); });
+
+  let html=`<div class="page">
+    <h2>Авторы</h2>
+    <p class="lead">${rows.length} ${plural(rows.length,"автор","автора","авторов")}. Нажмите на имя — откроется полка с книгами этого автора.</p>
+    <div class="alpha"><b>Буквы</b>`;
+  for(const L of ALPHA)
+    html+=`<a href="#" class="${letters[L]?"":"off"}" data-letter="${L}">${L}</a>`;
+  html+=`</div><div id="alphalist">`;
+
+  for(const L of Object.keys(letters).sort()){
+    html+=`<div class="secrow" id="L-${L}" style="margin-top:26px">
+      <h3>${L}</h3><div class="sub">${letters[L].length} ${plural(letters[L].length,"автор","автора","авторов")}</div>`;
+    for(const r of letters[L]){
+      html+=`<div class="itemrow">
+        <a class="nm" href="#/author/${encodeURIComponent(r.k)}">${esc(r.k)}</a>
+        <div class="rt">
+          <span class="num">${r.total} ${plural(r.total,"книга","книги","книг")}</span>
+          ${r.fav?`<span class="pct">${r.fav} ${plural(r.fav,"особенно любимая","особенно любимые","особенно любимых")}</span>`:`<span class="pct">${r.yes} вернусь</span>`}
+          <span class="num">${r.last||""}</span>
+        </div></div>`;
+    }
+    html+=`</div>`;
+  }
+  if(!rows.length) html+=`<p class="empty">Пока нет ни одного автора.</p>`;
+  return html+`</div></div>`;
+}
+
+function viewAuthorShelf(name){
+  name=String(name||"");
+  const list=BOOKS.filter(b=>b.a===name).sort((a,b)=>(b.y||0)-(a.y||0)||a.t.localeCompare(b.t,"ru"));
+  if(!list.length)return `<div class="page"><h2>${esc(name)}</h2><p class="empty">Книг этого автора не нашлось. <a href="#/authors">К списку авторов</a></p></div>`;
+
+  const yes=list.filter(b=>b.v==="yes");
+  const fav=list.filter(b=>b.fav);
+  const qs=list.flatMap(b=>(b.q||[]).map(q=>({q,b}))).slice(0,3);
+
+  let html=`<div class="page">
+    <h2>${esc(name)}</h2>
+    <p class="lead">${list.length} ${plural(list.length,"книга","книги","книг")} · вернусь ${yes.length}${fav.length?" · особенно любимых "+fav.length:""}</p>`;
+
+  if(fav.length){
+    html+=`<div class="secrow" style="margin-top:0"><h3>Особенно любимые</h3><div class="sub">Та самая узкая полка</div>`;
+    for(const b of fav) html+=shelfBookRow(b);
+    html+=`</div>`;
+  }
+
+  if(qs.length){
+    html+=`<div class="secrow" style="margin-top:0"><h3>Цитаты автора</h3><div class="qgrid" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr))">`;
+    for(const x of qs) html+=`<div class="qcard" data-go="${x.b.id}">
+        <div class="qt">«${esc(x.q)}»</div><div class="qs">${esc(x.b.t)} · ${x.b.y}</div></div>`;
+    html+=`</div></div>`;
+  }
+
+  html+=`<div class="secrow"><h3>Книги</h3><div class="sub">От новых к старым</div>`;
+  for(const b of list) html+=shelfBookRow(b);
+  html+=`</div>`;
+  return html+`<p style="margin-top:30px"><a class="reset" href="#/authors">← Все авторы</a></p></div>`;
+}
+
+function shelfBookRow(b){
+  return `<div class="itemrow">
+    <a class="nm" data-go="${b.id}">${esc(b.t)}${b.ser?`<small>${esc(b.ser)}${b.vol?", том "+b.vol:""}</small>`:""}</a>
+    <div class="rt">
+      <span class="num">${b.y||""}</span>
+      ${b.fav?`<span class="star">★</span>`:""}
+      <span class="pct" style="color:${b.v==="yes"?"var(--yes)":"var(--no)"}">${b.v==="yes"?"Вернусь":"Один раз"}</span>
+    </div></div>`;
+}
+
+/* ---------------- Серии ---------------- */
+function viewSeries(){
+  const p=seriesProgress();
+  const rows=Object.entries(p).map(([k,v])=>({k,...v})).sort((x,y)=>y.nums.length-x.nums.length||x.k.localeCompare(y.k,"ru"));
+  let html=`<div class="page">
+    <h2>Серии</h2>
+    <p class="lead">${rows.length} ${plural(rows.length,"серия","серии","серий")}. Считаются только те тома, которые вы прочитали, — сколько всего в серии, сайт не знает и не додумывает.</p>`;
+  if(!rows.length) html+=`<p class="empty">Пока ни одной серии не заведено.</p>`;
+  for(const r of rows){
+    const missing=r.max-r.nums.length;
+    html+=`<div class="itemrow">
+      <a class="nm" href="#/series/${encodeURIComponent(r.k)}">${esc(r.k)}<small>${esc(r.authors.join(", "))}</small></a>
+      <div class="rt">
+        <span class="num">${r.nums.length} ${plural(r.nums.length,"том","тома","томов")}</span>
+        <span class="pct">вернусь ${r.yes}</span>
+      </div>
+    </div>`;
+  }
+  return html+`</div>`;
+}
+
+function viewSeriesShelf(name){
+  name=String(name||"");
+  const list=BOOKS.filter(b=>b.ser===name).sort((a,b)=>(a.vol||0)-(b.vol||0));
+  if(!list.length)return `<div class="page"><h2>${esc(name)}</h2><p class="empty">Серия не найдена. <a href="#/series">К списку серий</a></p></div>`;
+
+  const nums=list.map(b=>b.vol||0).filter(Boolean).sort((a,b)=>a-b);
+  const max=nums[nums.length-1]||list.length;
+
+  let html=`<div class="page"><h2>${esc(name)}</h2>
+    <p class="lead">${esc(list[0].a||"")} · прочитано ${list.length} ${plural(list.length,"том","тома","томов")}</p>
+    <div class="secrow" style="margin-top:0"><h3>По томам</h3>
+    <div class="sub">${nums.length===max?"Порядок томов подряд, без пропусков.":"Между прочитанными томами есть пропуски — они отмечены явно."}</div>`;
+  for(let i=1;i<=max;i++){
+    const b=list.find(x=>x.vol===i);
+    if(b) html+=shelfBookRow(b);
+    else  html+=`<div class="itemrow"><span class="nm" style="color:var(--ink3);font-style:italic">Том ${i} — пропущен</span>
+                 <div class="rt"></div></div>`;
+  }
+  return html+`</div><p style="margin-top:30px"><a class="reset" href="#/series">← Все серии</a></p></div>`;
+}
+
+/* ---------------- Жанры ---------------- */
+function viewGenres(){
+  const m={};
+  BOOKS.forEach(b=>(b.g||[]).forEach(g=>{
+    if(!m[g])m[g]={total:0,yes:0};
+    m[g].total++;
+    if(b.v==="yes")m[g].yes++;
+  }));
+  const rows=Object.entries(m).map(([k,v])=>({k,...v,share:v.yes/v.total})).sort((x,y)=>y.total-x.total);
+  let html=`<div class="page"><h2>Жанры</h2>
+    <p class="lead">${rows.length} ${plural(rows.length,"жанр","жанра","жанров")}. Доля «Вернусь» — насколько жанр оказался «для себя».</p>`;
+  if(!rows.length) html+=`<p class="empty">Жанры ещё не заведены.</p>`;
+  for(const r of rows){
+    html+=`<div class="itemrow">
+      <a class="nm" href="#/genre/${encodeURIComponent(r.k)}">${esc(r.k)}</a>
+      <div class="rt">
+        <span class="num">${r.total} ${plural(r.total,"книга","книги","книг")}</span>
+        <span class="pct">${Math.round(r.share*100)} % вернусь</span>
+      </div>
+      <div class="bar"><i style="width:${Math.round(r.share*100)}%"></i></div>
+    </div>`;
+  }
+  const years=[...new Set(BOOKS.map(b=>b.y))].filter(Boolean).sort();
+  if(years.length>1){
+    html+=`<div class="secrow"><h3>Жанры по годам</h3><div class="sub">Как менялись предпочтения</div><div class="chart">`;
+    for(const y of years){
+      const list=BOOKS.filter(b=>b.y===y);
+      const tot=list.length;
+      html+=`<div class="col">
+        <span class="vl">${tot}</span>
+        <div class="stack" style="height:calc(var(--cmax,1)*${Math.max(tot,1)}px)"></div>
+        <span class="lb">${y}</span></div>`;
+    }
+    html+=`</div></div>`;
+  }
+  return html+`</div>`;
+}
+
+function viewGenreShelf(name){
+  name=String(name||"");
+  const list=BOOKS.filter(b=>(b.g||[]).includes(name))
+    .sort((a,b)=>(a.v==="yes"?0:1)-(b.v==="yes"?0:1)||(b.y||0)-(a.y||0));
+  if(!list.length)return `<div class="page"><h2>${esc(name)}</h2><p class="empty">Книг этого жанра не нашлось. <a href="#/genres">К списку жанров</a></p></div>`;
+  let html=`<div class="page"><h2>${esc(name)}</h2>
+    <p class="lead">${list.length} ${plural(list.length,"книга","книги","книг")} · вернусь ${list.filter(b=>b.v==="yes").length}</p>
+    <div class="secrow" style="margin-top:0"><h3>Книги</h3><div class="sub">Сначала те, к которым хочется вернуться</div>`;
+  for(const b of list) html+=shelfBookRow(b);
+  return html+`</div><p style="margin-top:30px"><a class="reset" href="#/genres">← Все жанры</a></p></div>`;
+}
+
+/* ---------------- Цитаты ---------------- */
+/* ---------------- Цитаты ----------------
+   Фильтры свои, отдельные от каталога: на странице цитат удобнее
+   выбрать из списка, чем щёлкать двадцать плашек подряд. */
+const QF={v:"",a:"",y:"",g:"",s:""};
+const QFL={v:"Вердикт",a:"Автор",y:"Год",g:"Жанр",s:"Серия"};
+
+function quotePool(){
+  const all=[];
+  BOOKS.forEach(b=>(b.q||[]).forEach(q=>all.push({q,b})));
+  return all.filter(x=>
+    (!QF.v||x.b.v===QF.v) &&
+    (!QF.a||x.b.a===QF.a) &&
+    (!QF.y||String(x.b.y)===QF.y) &&
+    (!QF.g||(x.b.g||[]).indexOf(QF.g)>=0) &&
+    (!QF.s||x.b.ser===QF.s));
+}
+
+/** Значения, которые вообще есть у книг с цитатами. */
+function quoteValues(key){
+  const withQ=BOOKS.filter(b=>(b.q||[]).length);
+  if(key==="v")return ["yes","no"].filter(v=>withQ.some(b=>b.v===v));
+  if(key==="a")return unique("a").filter(v=>withQ.some(b=>b.a===v));
+  if(key==="g")return unique("g").filter(v=>withQ.some(b=>(b.g||[]).indexOf(v)>=0));
+  if(key==="s")return unique("ser").filter(v=>withQ.some(b=>b.ser===v));
+  if(key==="y")return [...new Set(withQ.map(b=>b.y))].filter(Boolean).sort((a,b)=>b-a).map(String);
+  return [];
+}
+/** «Вернусь» / «Один раз» — на языке сайта, а не в ключах. */
+const qLabel=(k,v)=>k==="v"?(v==="yes"?"Вернусь":"Один раз"):v;
+
+function viewQuotes(){
+  const all=[];
+  BOOKS.forEach(b=>(b.q||[]).forEach(q=>all.push({q,b})));
+  const pool=quotePool();
+  const shown=pool.slice().sort((a,b)=>a.b.t.localeCompare(b.b.t,"ru"));  // порядок постоянный
+  const dirty=Object.keys(QF).some(k=>QF[k]);
+
+  let html=`<div class="page"><h2>Цитаты</h2>
+    <p class="lead">Всего сохранено ${all.length} ${plural(all.length,"цитата","цитаты","цитат")} из ${BOOKS.length} ${plural(BOOKS.length,"книги","книг","книг")}. Нажмите на карточку — откроется книга.</p>`;
+
+  if(all.length){
+    html+=`<div class="qfilters">`;
+    for(const k of ["v","a","g","s","y"]){
+      const vals=quoteValues(k);
+      if(!vals.length)continue;
+      html+=`<label class="qf"><span>${QFL[k]}</span><select class="sel" data-qf="${k}">
+        <option value="">все</option>
+        ${vals.map(v=>`<option value="${esc(v)}"${QF[k]===v?" selected":""}>${esc(qLabel(k,v))}</option>`).join("")}
+      </select></label>`;
+    }
+    if(dirty) html+=`<button class="reset" data-qreset>Сбросить фильтры</button>`;
+    html+=`</div>
+      <p class="hint" style="margin:12px 0 0">${dirty
+        ?`Под фильтр подходит ${pool.length} ${plural(pool.length,"цитата","цитаты","цитат")} из ${all.length}.`
+        :`Показаны все ${shown.length}. Порядок постоянный, а не случайный.`}</p>`;
+  }
+
+  if(!all.length) html+=`<p class="empty">Цитат пока нет.</p>`;
+  else if(!pool.length) html+=`<p class="empty">Под эти фильтры цитат не нашлось. <button class="reset" data-qreset>Сбросить</button></p>`;
+  else{
+    html+=`<div class="qgrid">`;
+    for(const x of shown) html+=`<div class="qcard" data-go="${x.b.id}">
+      <div class="qt">«${esc(x.q)}»</div>
+      <div class="qs"><b>${esc(x.b.t)}</b><br>${esc(x.b.a)} · ${x.b.y} · ${x.b.v==="yes"?"Вернусь":"Один раз"}</div></div>`;
+    html+=`</div>`;
+  }
+  return html+`</div>`;
+}
+
+/* ---------------- Статистика ---------------- */
+function viewStats(){
+  const total=BOOKS.length;
+  const yes=BOOKS.filter(b=>b.v==="yes").length, no=total-yes;
+  const years=[...new Set(BOOKS.map(b=>b.y))].filter(Boolean).sort();
+  const authors=[...new Set(BOOKS.map(b=>b.a).filter(Boolean))];
+  const series=Object.keys(seriesProgress()).length;
+  const genres=[...new Set(BOOKS.flatMap(b=>b.g||[]))];
+  const withNote=BOOKS.filter(b=>b.note).length;
+  const withQ=BOOKS.filter(b=>(b.q||[]).length).length;
+  const maxY=Math.max(1,...years.map(y=>BOOKS.filter(b=>b.y===y).length));
+
+  const stat=(n,d)=>`<div class="fact"><span class="k">${d}</span><span class="v">${n}</span></div>`;
+
+  let html=`<div class="page"><h2>Статистика</h2>
+    <p class="lead">Всё посчитано по таблице, ничего не вписано руками.</p>
+    <div class="facts">
+      ${stat(total,"книг всего")}${stat(yes,"вернусь")}${stat(no,"один раз")}
+      ${stat(authors.length,"авторов")}${stat(series,"серий")}${stat(genres.length,"жанров")}
+      ${stat(withNote,"с заметкой")}${stat(withQ,"с цитатами")}
+      ${stat(total?Math.round(yes/total*100):0,"% вернусь")}
+    </div>`;
+
+  if(years.length){
+    html+=`<div class="secrow"><h3>По годам</h3>
+      <div class="sub">Зелёный — «Вернусь», серый — «Один раз»</div><div class="chart">`;
+    for(const y of years){
+      const l=BOOKS.filter(b=>b.y===y);
+      const ly=l.filter(b=>b.v==="yes").length, ln=l.length-ly;
+      const h=Math.max(6,Math.round(l.length/maxY*150));
+      const hy=Math.round(ly/l.length*h);
+      html+=`<div class="col">
+        <span class="vl">${l.length}</span>
+        <div class="stack" style="height:${h}px">
+          ${ln?`<i class="n" style="height:${h-hy}px"></i>`:""}
+          ${ly?`<i class="y" style="height:${hy}px"></i>`:""}
+        </div><span class="lb">${y}</span></div>`;
+    }
+    html+=`</div></div>`;
+  }
+
+  const g={};
+  BOOKS.forEach(b=>(b.g||[]).forEach(x=>g[x]=(g[x]||0)+1));
+  const gr=Object.entries(g).map(([k,v])=>({k,v})).sort((a,b)=>b.v-a.v);
+  if(gr.length){
+    html+=`<div class="secrow"><h3>Жанры</h3><div class="sub">Сколько книг каждого жанра</div><div class="chart">`;
+    for(const r of gr) html+=`<div class="col">
+      <span class="vl">${r.v}</span>
+      <div class="stack" style="height:${Math.max(6,Math.round(r.v/gr[0].v*150))}px;background:var(--yes)"></div>
+      <span class="lb" style="max-width:52px;overflow:hidden;text-overflow:ellipsis">${esc(r.k)}</span></div>`;
+    html+=`</div></div>`;
+  }
+
+  const am={};
+  BOOKS.forEach(b=>{ if(b.a){ if(!am[b.a])am[b.a]={t:0,y:0}; am[b.a].t++; if(b.v==="yes")am[b.a].y++; } });
+  const ar=Object.entries(am).map(([k,v])=>({k,...v})).sort((a,b)=>b.t-a.t||b.y-a.y).slice(0,20);
+  if(ar.length){
+    html+=`<div class="secrow"><h3>Топ-20 авторов</h3><div class="sub">По числу прочитанных книг</div>`;
+    ar.forEach((r,i)=>{ html+=`<div class="itemrow">
+      <a class="nm" href="#/author/${encodeURIComponent(r.k)}"><span style="color:var(--ink3);font-family:var(--mono);font-size:13px;margin-right:12px">${i+1}</span>${esc(r.k)}</a>
+      <div class="rt"><span class="num">${r.t} ${plural(r.t,"книга","книги","книг")}</span><span class="pct">${r.y} вернусь</span></div></div>`; });
+    html+=`</div>`;
+  }
+
+  const tr=BOOKS.slice().sort((a,b)=>(b.note||"").length-(a.note||"").length).slice(0,10);
+  if(tr.length){
+    html+=`<div class="secrow"><h3>Самые подробные разборы</h3><div class="sub">Топ-10 по длине заметки</div>`;
+    for(const b of tr) html+=`<div class="itemrow">
+      <a class="nm" data-go="${b.id}">${esc(b.t)}</a>
+      <div class="rt"><span class="num">${esc(b.a)}</span><span class="num">${(b.note||"").length} зн.</span></div></div>`;
+    html+=`</div>`;
+  }
+  return html+`</div>`;
+}
+
+/* ---------------- О библиотеке ---------------- */
+function viewAbout(){
+  return `<div class="page prose">
+    <h2>О библиотеке</h2>
+    <p>${esc(txt("О библиотеке — зачем"))}</p>
+
+    <h4>Что означает «Вернусь»</h4>
+    <p><b>Вернусь</b> — ${esc(txt("Легенда — Вернусь"))}</p>
+    <p><b>Один раз</b> — ${esc(txt("Легенда — Один раз"))}</p>
+    <p>${esc(txt("О библиотеке — про оценки"))}</p>
+
+    <h4>Что можно почитать</h4>
+    <p>У каждой книги — одна заметка и до трёх цитат.</p>
+    <p>${esc(txt("О библиотеке — про заметки"))}</p>
+    <p>${esc(txt("О библиотеке — про обложки"))}</p>
+
+    <h4>Как всё устроено</h4>
+    <p>Каталог, списки, полки авторов, серий и жанров, статистика — всё это считается само из одного списка книг. Ничего не приходится поддерживать руками, кроме самих книг.</p>
+    <p>Данные лежат в таблице Google, она принадлежит мне. Сайт — обычная статичная страница: открывается быстро, не требует ни сервера, ни подписки.</p>
+
+    <h4>Как искать</h4>
+    <p>Поиск прощает опечатки: «булгакв» найдёт Булгакова. Фильтры работают одновременно — можно выбрать жанр и год и сразу получить пересечение.</p>
+  </div>`;
+}
+
+const ALPHA="АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ".split("");
+function firstLetter(s){
+  const c=String(s||"").trim().charAt(0).toUpperCase();
+  return ALPHA.includes(c)?c:"#";
+}
+
+
+/* ================= Страница книги ================= */
+let BACKPAGE="#/";
+function openBook(id){
+  const b=BOOKS.find(x=>x.id===id);if(!b)return;
+  // в режиме таблицы заметки лежат в отдельном файле — подгружаем один раз
+  if(REMOTE_ON&&!NOTES_LOADED){
+    document.getElementById("bbody").innerHTML='<p class="hint" style="padding:40px 0">Загружаю заметку…</p>';
+    document.getElementById("ov").classList.add("open");
+    const mine=FORM_TICK;
+    ensureNotes(id).then(()=>{ if(mine!==FORM_TICK)return; NOTES_LOADED=true; openBook(id); });
+    return;
+  }
+  const prev=BOOKS.filter(x=>x.y<b.y||(x.y===b.y&&x.t<b.t)).pop();
+  const next=BOOKS.filter(x=>x.y>b.y||(x.y===b.y&&x.t>b.t))[0];
+  document.getElementById("bbody").innerHTML=`
+    <h2 class="bh1">${esc(b.t)}</h2>
+    <div class="bauth">${esc(b.a)}</div>
+    ${b.ser?`<div class="bser">${esc(b.ser)}${b.vol?" · том "+b.vol:""}</div>`:""}
+    <div class="vplate ${b.v}">
+      <b>${b.v==="yes"?"Вернусь":"Один раз"}</b>
+      <span>${esc(legend(b.v))}</span>
+    </div>
+    ${b.fav?`<div class="favplate">Особенно любимая</div>`:""}
+    <div class="facts">
+      <div class="fact"><span class="k">Прочитано</span><span class="v">${b.y}</span></div>
+      ${b.g.length?`<div class="fact"><span class="k">Жанр</span><span class="v">${esc(b.g.join(", "))}</span></div>`:""}
+    </div>
+    ${b.note?`<div class="sec"><h5>Заметка</h5><p class="note">${esc(b.note)}</p></div>`:""}
+    ${(b.q||[]).length?`<div class="sec"><h5>Цитаты</h5>${b.q.map(q=>`<div class="qs"><p>«${esc(q)}»</p><cite>${esc(b.t)}${esc(b.a)}</cite></div>`).join("")}</div>`:""}
+    <div class="bnav">
+      ${prev?`<button class="btn" data-go="${prev.id}">← ${esc(prev.t)}</button>`:""}
+      ${next?`<button class="btn" data-go="${next.id}">${esc(next.t)} →</button>`:""}
+      <button class="btn" data-close>Закрыть</button>
+    </div>`;
+  document.getElementById("ov").classList.add("open");
+  window.scrollTo(0,0);
+  /* запоминаем, откуда открыли: после закрытия адрес возвращается на ту же
+     страницу. Иначе фильтры цитат, например, уводили бы на главную. */
+  if(!location.hash.startsWith("#book-")) BACKPAGE=location.hash||"#/";
+  history.replaceState(null,"","#book-"+id);
+}
+function closeBook(){
+  document.getElementById("ov").classList.remove("open");
+  history.replaceState(null,"",BACKPAGE);
+  FORM_TICK++;
+}
+document.addEventListener("click",e=>{
+  const ed=e.target.closest("[data-edit]");if(ed){e.stopPropagation();return openForm(+ed.dataset.edit)}
+  const dl=e.target.closest("[data-del]");if(dl){e.stopPropagation();return delBook(+dl.dataset.del)}
+  const g=e.target.closest("[data-id]");if(g)return openBook(+g.dataset.id);
+  const n=e.target.closest("[data-go]");if(n)return openBook(+n.dataset.go);
+  if(e.target.closest("[data-close]"))return closeBook();
+  if(e.target.closest("#bclose2")||e.target.closest("#back"))return closeBook();
+});
+
+/* ================= Фильтры в интерфейсе ================= */
+function chipGroup(el,values,setKey,label){
+  document.getElementById(el).innerHTML=values.map(v=>{
+    const cls=(setKey==="v"&&v==="yes")?" yes":"";
+    return `<button class="chip${cls}" data-f="${setKey}" data-val="${esc(v)}">${esc(label?label(v):v)}</button>`}).join("");
+}
+function buildFilters(){
+  chipGroup("f-v",["yes","no"],"v",v=>v==="yes"?"Вернусь":"Один раз");
+  chipGroup("f-y",[...new Set(BOOKS.map(b=>b.y))].sort((a,b)=>b-a).map(String),"y");
+  chipGroup("f-g",unique("g"),"g");
+  chipGroup("f-a",[...new Set(BOOKS.map(b=>b.a))].sort((a,b)=>a.localeCompare(b,"ru")),"a");
+  chipGroup("f-s",BOOKS.some(b=>b.ser)?unique("ser"):["—"],"s");
+}
+const LBL={v:x=>x==="yes"?"Вернусь":"Один раз",y:x=>x,g:x=>x,a:x=>x,s:x=>x==="—"?"вне серии":x};
+const FLD={v:"",y:"Год",g:"Жанр",a:"Автор",s:"Серия"};
+function renderActive(){
+  const tags=[];
+  ["v","y","g","a","s"].forEach(k=>S[k].forEach(val=>tags.push({k,val})));
+  [["note","Есть заметка"],["quote","Есть цитата"],["fav","Только особенно любимые"]]
+    .forEach(([k,l])=>{if(S[k])tags.push({k,flag:1,l})});
+  const box=document.getElementById("active");
+  /* Подпись поля и его значение иногда совпадают, а у вердикта подписи нет вовсе:
+   показываем одно слово — «Вернусь» или «Один раз», а не «ВернусьВернусь». */
+  box.innerHTML=tags.length?tags.map(t=>{
+    const f=t.l||FLD[t.k]||"";
+    const v=t.flag?"":esc((LBL[t.k]||(x=>x))(t.val));
+    return `<span class="tag" data-un="${t.k}" data-uv="${t.flag?"":esc(t.val)}">${
+      f&&v&&f!==v?`<b>${f}</b> ${v}`:(v||f)} ✕</span>`;
+  }).join("")+`<button class="reset" id="reset">Сбросить всё</button>`:"";
+  document.querySelectorAll(".chip[data-f]").forEach(c=>c.classList.toggle("on",S[c.dataset.f].has(c.dataset.val)));
+  ["note","quote","fav"].forEach(k=>document.getElementById("f-"+k).checked=S[k]);
+}
+
+document.addEventListener("click",e=>{
+  const c=e.target.closest(".chip[data-f]");
+  if(c){const s=S[c.dataset.f],v=c.dataset.val;s.has(v)?s.delete(v):s.add(v);return render()}
+  const u=e.target.closest("[data-un]");
+  /* проверка-галочка просто снимается; множество — удаляет выбранное значение */
+  if(u){const k=u.dataset.un;
+    if(S[k] instanceof Set)S[k].delete(u.dataset.uv); else S[k]=false;
+    return renderActive(),render()}
+  if(e.target.id==="reset"){
+    ["v","y","g","a","s"].forEach(k=>S[k].clear());
+    S.note=S.quote=S.fav=false;S.q="";document.getElementById("q").value="";return render();
+  }
+});
+/* Фильтры цитат живут отдельно от каталога, но перерисовку делают ту же. */
+document.addEventListener("change",e=>{
+  const s=e.target.closest("select[data-qf]"); if(!s)return;
+  QF[s.dataset.qf]=s.value; refresh();
+});
+document.addEventListener("click",e=>{
+  if(!e.target.closest("[data-qreset]"))return;
+  Object.keys(QF).forEach(k=>{QF[k]=""}); refresh();
+});
+document.getElementById("q").addEventListener("input",e=>{S.q=norm(e.target.value);render()});
+document.getElementById("sort").addEventListener("change",e=>{S.sort=e.target.value;render()});
+document.getElementById("view").addEventListener("click",e=>{
+  const b=e.target.closest("[data-v]");if(!b)return;
+  S.view=b.dataset.v;
+  document.querySelectorAll("#view button").forEach(x=>x.classList.toggle("on",x===b));render();
+});
+document.getElementById("fb").addEventListener("click",e=>{
+  const f=document.getElementById("filters");f.classList.toggle("open");e.target.classList.toggle("on",f.classList.contains("open"));
+});
+["note","quote","fav"].forEach(k=>document.getElementById("f-"+k).addEventListener("change",e=>{S[k]=e.target.checked;render()}));
+
+/* ================= Экспорт ================= */
+document.getElementById("print").addEventListener("click",()=>window.print());
+document.getElementById("csv").addEventListener("click",()=>{
+  const rows=[["Название","Автор","Год","Вернусь","Особенно любимая","Жанры","Серия","Том","Заметка","Цитаты"]];
+  filtered().forEach(b=>rows.push([b.t,b.a,b.y,b.v==="yes"?"Вернусь":"Один раз",b.fav?"да":"",b.g.join("; "),b.ser||"",b.vol||"",(b.note||"").replace(/\n/g," "),(b.q||[]).join(" | ")]));
+  const csv="\ufeff"+rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(";")).join("\r\n");
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
+  a.download="biblioteka.csv";a.click();
+});
+
+/* ================= Переходы между страницами ================= */
+/* Клик по году на главной — открыть каталог с фильтром по этому году */
+document.addEventListener("click",e=>{
+  const yr=e.target.closest("[data-year]");
+  if(yr){ S.y.clear(); S.y.add(String(yr.dataset.year)); location.hash="#/catalog"; return; }
+  const lt=e.target.closest("[data-letter]");
+  if(lt){ e.preventDefault(); const t=document.getElementById("L-"+lt.dataset.letter); if(t)t.scrollIntoView(); return; }
+});
+
+window.addEventListener("hashchange",()=>{
+  if(location.hash.startsWith("#book-")){ openBook(+location.hash.slice(6)); return; }
+  go(location.hash||"#/");
+});
+
+/* ================= Инициализация ================= */
+applySetup();
+counters();
+buildFilters();
+go(location.hash||"#/");
+
+if(REMOTE_ON){
+  document.getElementById("out").innerHTML=
+    '<p class="hint" style="padding:40px 0;font-size:15px">Загружаю библиотеку из таблицы…</p>';
+  document.getElementById("rcount").textContent="";
+  loadSetup();
+  remoteReload()
+    .then(()=>{
+      if(location.hash.startsWith("#book-")){ openBook(+location.hash.slice(6)); return; }
+      go(location.hash||"#/");
+    })
+    .catch(e=>{
+      document.getElementById("out").innerHTML=
+        '<div style="padding:30px 0;max-width:60ch">'+
+        '<h3 style="font-family:var(--serif);margin:0 0 10px">Не получилось загрузить таблицу</h3>'+
+        '<p class="hint">'+esc(e.message)+'</p>'+
+        '<p class="hint">Проверьте адрес в строке <code>var REMOTE = ""</code> файла и то, '+
+        'что веб-приложение опубликовано с доступом «Все».</p></div>';
+      document.getElementById("rcount").textContent="";
+    });
+}
+</script>
+</body>
+</html>
