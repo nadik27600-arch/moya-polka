@@ -693,7 +693,10 @@ function legend(v){ return v==="yes"?txt("Легенда — Вернусь"):tx
 
 /** Раздать тексты по страницам. Вызывается и в демо-режиме, и после загрузки из таблицы. */
 function applySetup(){
-  document.title=txt("Заголовок")+" — библиотека прочитанного";
+  /* Заголовок вкладки берём из таблицы как есть. Раньше здесь приписывалось
+     « — библиотека прочитанного», и если в таблице «Заголовок» уже был таким
+     же, вкладка показывала его дважды подряд. */
+  document.title=txt("Заголовок")||document.title;
   const h=document.querySelector("header h1"); if(h)h.textContent=txt("Заголовок")||h.textContent;
   const s=document.querySelector("header .sub"); if(s)s.textContent=txt("Подзаголовок")||s.textContent;
   if(SETUP.__loaded)render();
